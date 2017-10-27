@@ -1,0 +1,120 @@
+World Map: 
+[0, 0, 1, 0, 0, 0]
+[0, 0, 1, 0, 0, 0]
+[0, 0, 1, 0, 0, 0]
+[0, 0, 0, 0, 1, 0]
+[0, 0, 1, 1, 1, 0]
+[0, 0, 0, 0, 1, 0]
+Heuristic function: 
+[10, 9, 8, 7, 6, 5]
+[9, 8, 7, 6, 5, 4]
+[8, 7, 6, 5, 4, 3]
+[7, 6, 5, 4, 3, 2]
+[6, 5, 4, 3, 2, 1]
+[5, 4, 3, 2, 1, 0]
+Starting from [0, 0] with destination [5, 5]
+Expanding:  [0, 0]
+	New Min Cost at: [0, 0] 10 for [1, 0]
+Expansion:
+	 Entry: Location: [1, 0], Cost: 10, Path: ['v']
+	 Entry: Location: [0, 1], Cost: 10, Path: ['>']
+Expanding:  [1, 0]
+	New Min Cost at: [1, 0] 19 for [2, 0]
+Expansion:
+	 Entry: Location: [2, 0], Cost: 19, Path: ['v', 'v']
+	 Entry: Location: [1, 1], Cost: 19, Path: ['v', '>']
+Expanding:  [0, 1]
+	New Min Cost at: [0, 1] 19 for [1, 1]
+Expansion:
+	 Entry: Location: [1, 1], Cost: 19, Path: ['>', 'v']
+Expanding:  [2, 0]
+	New Min Cost at: [2, 0] 27 for [3, 0]
+Expansion:
+	 Entry: Location: [3, 0], Cost: 27, Path: ['v', 'v', 'v']
+	 Entry: Location: [2, 1], Cost: 27, Path: ['v', 'v', '>']
+Expanding:  [1, 1]
+	New Min Cost at: [1, 1] 27 for [2, 1]
+Expansion:
+	 Entry: Location: [2, 1], Cost: 27, Path: ['v', '>', 'v']
+Expanding:  [3, 0]
+	New Min Cost at: [3, 0] 34 for [4, 0]
+Expansion:
+	 Entry: Location: [4, 0], Cost: 34, Path: ['v', 'v', 'v', 'v']
+	 Entry: Location: [3, 1], Cost: 34, Path: ['v', 'v', 'v', '>']
+Expanding:  [2, 1]
+	New Min Cost at: [2, 1] 34 for [3, 1]
+Expansion:
+	 Entry: Location: [3, 1], Cost: 34, Path: ['v', 'v', '>', 'v']
+Expanding:  [4, 0]
+	New Min Cost at: [4, 0] 40 for [5, 0]
+Expansion:
+	 Entry: Location: [5, 0], Cost: 40, Path: ['v', 'v', 'v', 'v', 'v']
+	 Entry: Location: [4, 1], Cost: 40, Path: ['v', 'v', 'v', 'v', '>']
+Expanding:  [3, 1]
+	New Min Cost at: [3, 1] 40 for [4, 1]
+Expansion:
+	 Entry: Location: [4, 1], Cost: 40, Path: ['v', 'v', 'v', '>', 'v']
+	 Entry: Location: [3, 2], Cost: 40, Path: ['v', 'v', 'v', '>', '>']
+Expanding:  [5, 0]
+	New Min Cost at: [5, 0] 45 for [5, 1]
+Expansion:
+	 Entry: Location: [5, 1], Cost: 45, Path: ['v', 'v', 'v', 'v', 'v', '>']
+Expanding:  [4, 1]
+	New Min Cost at: [4, 1] 45 for [5, 1]
+Expansion:
+	 Entry: Location: [5, 1], Cost: 45, Path: ['v', 'v', 'v', 'v', '>', 'v']
+Expanding:  [3, 2]
+	New Min Cost at: [3, 2] 45 for [3, 3]
+Expansion:
+	 Entry: Location: [3, 3], Cost: 45, Path: ['v', 'v', 'v', '>', '>', '>']
+Expanding:  [5, 1]
+	New Min Cost at: [5, 1] 49 for [5, 2]
+Expansion:
+	 Entry: Location: [5, 2], Cost: 49, Path: ['v', 'v', 'v', 'v', 'v', '>', '>']
+Expanding:  [3, 3]
+	New Min Cost at: [3, 3] 51 for [2, 3]
+Expansion:
+	 Entry: Location: [2, 3], Cost: 51, Path: ['v', 'v', 'v', '>', '>', '>', '^']
+Expanding:  [5, 2]
+	New Min Cost at: [5, 2] 52 for [5, 3]
+Expansion:
+	 Entry: Location: [5, 3], Cost: 52, Path: ['v', 'v', 'v', 'v', 'v', '>', '>', '>']
+Expanding:  [2, 3]
+	New Min Cost at: [2, 3] 58 for [1, 3]
+	New Min Cost at: [2, 3] 56 for [2, 4]
+Expansion:
+	 Entry: Location: [2, 4], Cost: 56, Path: ['v', 'v', 'v', '>', '>', '>', '^', '>']
+Expanding:  [5, 3]
+Expansion:
+Expanding:  [2, 4]
+	New Min Cost at: [2, 4] 62 for [1, 4]
+	New Min Cost at: [2, 4] 60 for [2, 5]
+Expansion:
+	 Entry: Location: [2, 5], Cost: 60, Path: ['v', 'v', 'v', '>', '>', '>', '^', '>', '>']
+Expanding:  [2, 5]
+	New Min Cost at: [2, 5] 65 for [1, 5]
+	New Min Cost at: [2, 5] 63 for [3, 5]
+Expansion:
+	 Entry: Location: [3, 5], Cost: 63, Path: ['v', 'v', 'v', '>', '>', '>', '^', '>', '>', 'v']
+Expanding:  [3, 5]
+	New Min Cost at: [3, 5] 65 for [4, 5]
+Expansion:
+	 Entry: Location: [4, 5], Cost: 65, Path: ['v', 'v', 'v', '>', '>', '>', '^', '>', '>', 'v', 'v']
+Expanding:  [4, 5]
+	New Min Cost at: [4, 5] 66 for [5, 5]
+Expansion:
+	 Entry: Location: [5, 5], Cost: 66, Path: ['v', 'v', 'v', '>', '>', '>', '^', '>', '>', 'v', 'v', 'v']
+Best Route:['v', 'v', 'v', '>', '>', '>', '^', '>', '>', 'v', 'v', 'v'] has cost: 66
+Route:
+['v', ' ', ' ', ' ', ' ', ' ']
+['v', ' ', ' ', ' ', ' ', ' ']
+['v', ' ', ' ', '>', '>', 'v']
+['>', '>', '>', '^', ' ', 'v']
+[' ', ' ', ' ', ' ', ' ', 'v']
+[' ', ' ', ' ', ' ', ' ', ' ']
+[2, 2, 1, 0, 0, 0]
+[2, 2, 1, 0, 0, 0]
+[2, 2, 1, 2, 2, 2]
+[2, 2, 2, 2, 1, 2]
+[2, 2, 1, 1, 1, 2]
+[2, 2, 2, 2, 1, 0]
