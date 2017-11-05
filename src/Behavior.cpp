@@ -18,7 +18,7 @@ Behavior::Behavior() :
 	v_buffer(mph_to_mps(5)),
 	v_target(v_limit - v_buffer),
 	cost_stop(0.75),
-	a_max(COMFORTABLE_ACCELERATION)
+	a_max(MAX_ACCELERATION)
 {}
 
 vector<FSM> available_sucessor_states(FSM current_state) {
@@ -49,7 +49,7 @@ vector<FSM> available_sucessor_states(FSM current_state) {
 	}
 }
 
-FSM Behavior::transition_function(vector<int>predictions, FSM current_state, VehiclePose pose) {
+FSM Behavior::transition_function(vector<int>predictions, FSM current_state, VehiclePose pose, vector<vector<VehiclePose>> sorted_traffic) {
     //only consider states which ca n be reached from current FSM state.
     vector<FSM> possible_successor_states = available_sucessor_states(current_state);
     FSM next_state = FSM::KE;
@@ -59,7 +59,7 @@ FSM Behavior::transition_function(vector<int>predictions, FSM current_state, Veh
 
     for (auto const& state : possible_successor_states) {
         //generate resulting trajectory for the target state
-        Trajectory state_trajectory = trajectory_planner.get_trajectory(state, pose);
+        Trajectory state_trajectory = trajectory_planner.plan_trajectory(state, pose, sorted_traffic);
 
         //calculate the "cost" of that trajectory.
         double cost_for_state = cost_function(pose);
@@ -105,8 +105,8 @@ double Behavior::cost_speed(VehiclePose pose) {
 
 double Behavior::cost_lane_keep(VehiclePose pose) {
 	double cost = 0.0;
-	double lane_center = get_lane_center(pose.lane);
-	cost = 1/ (1 + exp(-pow(pose.d - lane_center, 2.0)));
+	double center = lane_center(pose.lane);
+	cost = 1/ (1 + exp(-pow(pose.d - center, 2.0)));
 	return cost * this->weight_lane_keep;
 }
 

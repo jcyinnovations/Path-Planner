@@ -47,7 +47,11 @@ public:
 	/**
 	 * Naive Bayes Estimation of future state
 	 */
-	FSM transition_function(vector<int>predictions, FSM current_state, VehiclePose pose);
+	FSM transition_function(
+			vector<int>predictions,
+			FSM current_state,
+			VehiclePose pose,
+			vector<vector<VehiclePose>> sorted_traffic);
 
 	double cost_function(VehiclePose state);
 

@@ -93,6 +93,7 @@ planner_tests: CMakeFiles/planner_tests.dir/build.make
 planner_tests: tests/libpath_planning_test_lib.a
 planner_tests: src/libpath_planning_lib.a
 planner_tests: /usr/local/lib/libgtest.a
+planner_tests: /usr/lib/x86_64-linux-gnu/libpython2.7.so
 planner_tests: CMakeFiles/planner_tests.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/jyarde/Udacity/CarND-Path-Planning-Project/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable planner_tests"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/planner_tests.dir/link.txt --verbose=$(VERBOSE)

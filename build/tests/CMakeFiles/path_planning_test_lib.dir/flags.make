@@ -6,5 +6,5 @@ CXX_FLAGS =   -std=c++11 -g
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/jyarde/Udacity/CarND-Path-Planning-Project/external -I/home/jyarde/Udacity/CarND-Path-Planning-Project/src 
+CXX_INCLUDES = -I/home/jyarde/Udacity/CarND-Path-Planning-Project/external -I/home/jyarde/Udacity/CarND-Path-Planning-Project/src -I/usr/include/python2.7 
 

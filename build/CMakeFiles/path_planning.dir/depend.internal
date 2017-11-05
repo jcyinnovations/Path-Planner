@@ -4,9 +4,14 @@
 CMakeFiles/path_planning.dir/src/main.cpp.o
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Cholesky
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Core
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Dense
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Eigenvalues
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Geometry
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Householder
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/Jacobi
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/LU
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/QR
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/SVD
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Cholesky/LDLT.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Cholesky/LLT.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Cholesky/LLT_LAPACKE.h
@@ -140,16 +145,64 @@ CMakeFiles/path_planning.dir/src/main.cpp.o
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Core/util/ReenableStupidWarnings.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Core/util/StaticAssert.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Core/util/XprHelper.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/./ComplexSchur.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/./HessenbergDecomposition.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/./RealQZ.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/./RealSchur.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/./Tridiagonalization.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/ComplexEigenSolver.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/ComplexSchur.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/ComplexSchur_LAPACKE.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/EigenSolver.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/GeneralizedEigenSolver.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/GeneralizedSelfAdjointEigenSolver.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/HessenbergDecomposition.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/MatrixBaseEigenvalues.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/RealQZ.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/RealSchur.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/RealSchur_LAPACKE.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/SelfAdjointEigenSolver.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/SelfAdjointEigenSolver_LAPACKE.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Eigenvalues/Tridiagonalization.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/AlignedBox.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/AngleAxis.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/EulerAngles.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Homogeneous.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Hyperplane.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/OrthoMethods.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/ParametrizedLine.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Quaternion.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Rotation2D.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/RotationBase.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Scaling.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Transform.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Translation.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/Umeyama.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Geometry/arch/Geometry_SSE.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Householder/BlockHouseholder.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Householder/Householder.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Householder/HouseholderSequence.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/Jacobi/Jacobi.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/LU/Determinant.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/LU/FullPivLU.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/LU/InverseImpl.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/LU/PartialPivLU.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/LU/PartialPivLU_LAPACKE.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/LU/arch/Inverse_SSE.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/QR/ColPivHouseholderQR.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/QR/ColPivHouseholderQR_LAPACKE.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/QR/CompleteOrthogonalDecomposition.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/QR/FullPivHouseholderQR.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/QR/HouseholderQR.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/QR/HouseholderQR_LAPACKE.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/SVD/BDCSVD.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/SVD/JacobiSVD.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/SVD/JacobiSVD_LAPACKE.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/SVD/SVDBase.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/SVD/UpperBidiagonalization.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/misc/Image.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/misc/Kernel.h
+ /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/misc/RealSvd2x2.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/misc/blas.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/misc/lapacke.h
  /home/jyarde/Udacity/CarND-Path-Planning-Project/src/Eigen-3.3/Eigen/src/misc/lapacke_mangling.h

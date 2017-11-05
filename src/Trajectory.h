@@ -14,6 +14,7 @@
 #include <cmath>
 #include <ostream>
 #include <iostream>
+#include "Eigen-3.3/Eigen/Dense"
 
 using namespace std;
 
@@ -27,7 +28,7 @@ using namespace std;
 class PathNode {
 public:
 	vector<FSM> allowed_moves = {FSM::KE, FSM::CL, FSM::KB, FSM::CR};
-	vector<string> move_annotation = {"^", "<", "V", ">"};
+	vector<string> move_annotation = {"^", "<", "v", ">"};
 	vector<double> move_costs = {1.0, 1.0, 1.0, 1.0};
 	vector<vector<int>> delta = {{-1, 0}, {0,-1}, {1, 0}, {0, 1}};
 
@@ -75,12 +76,11 @@ public:
 	vector<double> map_dx;
 	vector<double> map_dy;
 
-	vector<VehiclePose> traffic;
 	/**
-	 * End state of the vehicle (location, speed etc)
+	 * Previous vehicle states (to calculate speed and acceleration)
 	 *
 	 */
-	VehiclePose destination;
+	VehiclePose car_t0;	//Previous state
 
 	/**
 	 * Index of the nearest waypoint
@@ -94,6 +94,18 @@ public:
 	vector<vector<int>> map_grid;
 
 	/**
+	 * Chosen lane based on instructions from the behaviour planner
+	 */
+	int target_lane;
+
+	/**
+	 * Just starting
+	 */
+	bool startup;
+
+	int track_length;
+
+	/**
 	 * Frenet position of starting waypoint
 	 */
 	double grid_start_s;
@@ -103,7 +115,12 @@ public:
 	 */
 	VehiclePose location;
 
-	TrajectoryPlanner(vector<double> x, vector<double> y, vector<double> s, vector<double> dx, vector<double> dy);
+	TrajectoryPlanner(
+			vector<double> x,
+			vector<double> y,
+			vector<double> s,
+			vector<double> dx,
+			vector<double> dy);
 
 	TrajectoryPlanner();
 
@@ -113,9 +130,24 @@ public:
 	 * Take current environment (sensor fusion) and vehicle state
 	 * and convert to a grid form usable by Hybrid A*
 	 */
-	void state_update(VehiclePose vehicle, vector<vector<double>> sensor_fusion, int closestWaypoint);
+	void state_update(
+			VehiclePose vehicle,
+			vector<vector<double>> sensor_fusion,
+			int closestWaypoint,
+			double max_s);
 
-	Trajectory get_trajectory(FSM state, VehiclePose pose);
+	/**
+	 * Generate trajectories based on surrounding traffic and desired next state
+	 */
+	Trajectory plan_trajectory(
+			FSM state,
+			VehiclePose pose,
+			vector<vector<VehiclePose>> sorted_traffic);
+
+	Trajectory generate_trajectory(
+			FSM state,
+			VehiclePose ego_car,
+			vector<vector<VehiclePose>> sorted_traffic);
 
 	/**
 	 * Find the best route forward. Based on Hybrid A* search
@@ -183,6 +215,8 @@ ostream& operator<< (ostream& out, const vector<T>& list) {
 
 inline ostream& operator<< (ostream& out, const VehiclePose& pose) {
 	out << "[" << pose.grid_x << ", " << pose.grid_y << "]";
+	if (pose.id != -1)
+		out << pose.leading;
     return out;
 }
 

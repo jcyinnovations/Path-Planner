@@ -13,6 +13,7 @@ set(CMAKE_CXX_COMPILER_ID "GNU")
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
   "../external"
   "../src"
+  "/usr/include/python2.7"
   )
 
 # Targets to which this target links.
