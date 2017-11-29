@@ -59,7 +59,7 @@ FSM Behavior::transition_function(vector<int>predictions, FSM current_state, Veh
 
     for (auto const& state : possible_successor_states) {
         //generate resulting trajectory for the target state
-        Trajectory state_trajectory = trajectory_planner.plan_trajectory(state, pose, sorted_traffic);
+        Trajectory state_trajectory ;//= trajectory_planner.plan_trajectory(state, pose, sorted_traffic);
 
         //calculate the "cost" of that trajectory.
         double cost_for_state = cost_function(pose);

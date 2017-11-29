@@ -10,11 +10,15 @@
 #include "json.hpp"
 #include "common.h"
 #include "Trajectory.h"
+#include "spline.h"
 
 using namespace std;
 
 // for convenience
 using json = nlohmann::json;
+
+TrajectoryPlanner trajectory_planner;
+
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -31,6 +35,26 @@ string hasData(string s) {
   return "";
 }
 
+
+inline vector<double> getXY2(
+		double s,
+		double d,
+		const tk::spline &spline_x,
+		const tk::spline &spline_y,
+		const tk::spline &spline_dir)
+{
+	double seg_x = spline_x(s);
+	double seg_y = spline_y(s);
+
+	double perp_heading = spline_dir(s);
+
+	double x = seg_x + d*cos(perp_heading);
+	double y = seg_y + d*sin(perp_heading);
+
+	return {x,y};
+}
+
+
 int main() {
   uWS::Hub h;
 
@@ -43,6 +67,7 @@ int main() {
 	vector<double> map_waypoints_s;
 	vector<double> map_waypoints_dx;
 	vector<double> map_waypoints_dy;
+	vector<double> map_waypoints_dir;
 
   ifstream in_map_(map_file_.c_str(), ifstream::in);
 
@@ -64,9 +89,18 @@ int main() {
   	map_waypoints_s.push_back(s);
   	map_waypoints_dx.push_back(d_x);
   	map_waypoints_dy.push_back(d_y);
+  	double dir = atan2(d_y, d_x);
+  	map_waypoints_dir.push_back(dir);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+	tk::spline s_x;
+	s_x.set_points(map_waypoints_s, map_waypoints_x);
+	tk::spline s_y;
+	s_y.set_points(map_waypoints_s, map_waypoints_y);
+	tk::spline s_dir;
+	s_dir.set_points(map_waypoints_s, map_waypoints_dir);
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &s_x,&s_y,&s_dir](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -93,14 +127,20 @@ int main() {
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
-          	cout << "Vehicle: \n";
-          	cout << car_x << ", " << car_y << ", " << car_s << ", " << car_d << ", " << car_yaw << ", " << car_speed << ", \n";
+          	cout << "\n\n\nVehicle: " << car_x << ", \t" << car_y << ", \t" << car_s << ", \t" << car_d << ", \t" << car_yaw << ", \t" << car_speed << endl;
+
           	// Previous path data given to the Planner
-          	auto previous_path_x = j[1]["previous_path_x"];
-          	auto previous_path_y = j[1]["previous_path_y"];
+          	vector<double> previous_path_x = j[1]["previous_path_x"];
+          	vector<double> previous_path_y = j[1]["previous_path_y"];
           	// Previous path's end s and d values 
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
+
+          	/**
+          	 * DEBUG:
+          	cout << "Previous Path x: \n" << previous_path_x;
+          	cout << "Previous Path end s, d: " << end_path_s << ", " << end_path_d;
+          	 */
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
@@ -114,8 +154,6 @@ int main() {
           		double map_y = map_waypoints_y[closestWaypoint];
           		double theta = atan2( (map_y - current[2]), (map_x - current[1]) );
           		current.push_back(theta);
-          		current[3] = mph_to_mps(current[3]);
-          		current[4] = mph_to_mps(current[4]);
           		sensor_data.push_back(current);
           	}
 
@@ -128,42 +166,58 @@ int main() {
 			ego_car.s = car_s;
 			ego_car.d = car_d;
 			ego_car.yaw = deg2rad(car_yaw);
-			ego_car.v = mph_to_mps(car_speed);
+			ego_car.v = car_speed;
 			ego_car.id =-1;
 			int car_waypoint = ClosestWaypoint(car_x, car_y, map_waypoints_x, map_waypoints_y);
 			ego_car.waypoint = car_waypoint;
 			ego_car.lane = current_lane(car_d);
 
+			json msgJson;
+			vector<double> next_x_vals;
+			vector<double> next_y_vals;
 			/**
 			 * Sort traffic before sending to the behavior planner
 			 */
+			int remainder = previous_path_x.size();
+			/**DEBUG**/
+			if (remainder > 0) {
+				for (int i=0; i<remainder; i++) {
+					next_x_vals.push_back(previous_path_x[i]);
+					next_y_vals.push_back(previous_path_y[i]);
+				}
+			}
+
+			cout << "Previous Path x: " << previous_path_x << endl;
+			cout << "Previous Path y: " << previous_path_y << endl;
+
 			vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
+			Trajectory trajectory = trajectory_planner.plan_trajectory(
+					FSM::KE, ego_car, traffic, remainder, end_path_s, end_path_d);
 
-			TrajectoryPlanner trajectory_planner;
-			Trajectory trajectory = trajectory_planner.plan_trajectory(FSM::KE, ego_car, traffic);
-          	json msgJson;
+			cout << "current Path s: " << trajectory.s << endl;
+			cout << "current Path d: " << trajectory.d << endl;
 
-          	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+			for(int i = 0; i < trajectory.s.size(); i++)
+			{
+				vector<double> xy = getXY2(
+						trajectory.s[i],
+						trajectory.d[i],
+						s_x,
+						s_y,
+						s_dir);
+				next_x_vals.push_back(xy[0]);
+				next_y_vals.push_back(xy[1]);
+			}
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-            double dist_inc = 0.5;
-            for(int i = 0; i < HORIZON; i++)
-            {
-            	double s = trajectory.s[i];
-            	double d = trajectory.d[i];
-            	vector<double> xy = getXY(s,d,map_waypoints_s, map_waypoints_x, map_waypoints_y );
-            	next_x_vals.push_back(xy[0]);
-            	next_y_vals.push_back(xy[1]);
-            	//next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-            	//next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-            }
-            cout << "\nTrajectory:" << endl;
-            cout << next_x_vals << endl;
-            cout << next_y_vals << endl;
+			/**
+			 * DEBUG
+			 */
+			cout << "\nOutput Trajectory:" << endl;
+			cout << "x: " << next_x_vals << endl;
+			cout << "y: " << next_y_vals << endl;
 
-          	msgJson["next_x"] = next_x_vals;
-          	msgJson["next_y"] = next_y_vals;
+			msgJson["next_y"] = next_y_vals;
+			msgJson["next_x"] = next_x_vals;
 
           	auto msg = "42[\"control\","+ msgJson.dump()+"]";
 

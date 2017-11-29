@@ -15,9 +15,12 @@
 #include <stdio.h>
 #include <cmath>
 #include <algorithm>
+#include "Eigen-3.3/Eigen/Dense"
 
 using namespace std;
 
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
 
 /**
  * KE - Keep lane
@@ -37,8 +40,8 @@ inline double mph_to_mps(double speed) {
 namespace {
 	int TOTAL_LANES = 3;
 	int LANE_WIDTH  = 4;
-	double MAX_ACCELERATION = 10.0;		//meters per second squared
-	double SPEED_LIMIT = 50.0; 					//miles per hour
+	double MAX_ACCELERATION = 0.5*10.0;//meters per second squared
+	double SPEED_LIMIT = 0.95 * 50.0; 	//miles per hour
 	double SPEED_LIMIT_MPS = mph_to_mps(SPEED_LIMIT);
 	double ROAD_MAX	 = TOTAL_LANES * LANE_WIDTH;
 	double ROAD_MIN	 = 0.0;
@@ -75,7 +78,6 @@ inline int ClosestWaypoint(double x, double y, const vector<double> &maps_x, con
 			closestLen = dist;
 			closestWaypoint = i;
 		}
-
 	}
 
 	return closestWaypoint;
@@ -90,17 +92,21 @@ inline int NextWaypoint(double x, double y, double theta, const vector<double> &
 	double map_x = maps_x[closestWaypoint];
 	double map_y = maps_y[closestWaypoint];
 
-	double heading = atan2( (map_y-y),(map_x-x) );
+	double heading = atan2((map_y-y),(map_x-x));
 
-	double angle = abs(theta-heading);
+	double angle = fabs(theta-heading);
+	angle = min(2*pi() - angle, angle);
 
 	if(angle > pi()/4)
 	{
 		closestWaypoint++;
+		if (closestWaypoint == maps_x.size())
+		{
+			closestWaypoint = 0;
+		}
 	}
 
 	return closestWaypoint;
-
 }
 
 // Transform from Cartesian x,y coordinates to Frenet s,d coordinates
@@ -170,6 +176,9 @@ inline vector<double> getXY(
 	int wp2 = (prev_wp+1)%maps_x.size();
 
 	double heading = atan2((maps_y[wp2]-maps_y[prev_wp]),(maps_x[wp2]-maps_x[prev_wp]));
+
+	//heading = min(2*pi() - heading, heading);
+
 	// the x,y,s along the segment
 	double seg_s = (s-maps_s[prev_wp]);
 
@@ -206,6 +215,15 @@ inline int current_lane(double d) {
 		}
 	}
 	return lane;
+}
+
+/**
+ * Check if the value is within tolerance (%) of the target
+ */
+inline bool in_range(double value, double target, double tolerance) {
+	double lower = target * (1-tolerance);
+	double upper = target * (1+tolerance);
+	return value >= lower && value <= upper;
 }
 
 enum class FSM { KE, CL, KB, CR, PR, PL };
@@ -245,25 +263,48 @@ inline vector<U> subset(vector<U> source, int start, int length) {
 }
 
 struct Trajectory {
+	Trajectory() :
+		s(0.0),
+		d(0.0),
+		sf_dot(0.0),
+		target_lane(2),
+		target_state(FSM::KE),
+		state_possible(true) {}
+
 	vector<double> s;		//Trajectory x
 	vector<double> d;		//Trajectory y
 	FSM target_state;		//Requested state
+	int target_lane;		//Based on state
 	bool state_possible;	//can the state change be made
+	//Current Trajectory parameters
+	VectorXd a = VectorXd(6);
+	VectorXd b = VectorXd(6);
+	double sf_dot;			//Trajectory end speed
 };
 
 struct VehiclePose {
+	VehiclePose() :
+		x(0.0),
+		y(0.0),
+		s(0.0),
+		d(0.0),
+		yaw(0.0),
+		v(0.0),
+		lane(2),
+		vx(0.0),
+		vy(0.0),
+		waypoint(0),
+		distance(0.0),
+		leading(false),
+		id(0),
+		grid_x(0),
+		grid_y(0) {}
   	double x;
   	double y;
   	double s;
   	double d;
   	double yaw;
   	double v;
-
-  	//Trajectory Planner
-  	double s_dot;
-  	double s_dotdot;
-  	double d_dot;
-  	double d_dotdot;
 
   	int lane;
 

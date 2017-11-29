@@ -14,7 +14,6 @@
 #include <cmath>
 #include <ostream>
 #include <iostream>
-#include "Eigen-3.3/Eigen/Dense"
 
 using namespace std;
 
@@ -77,12 +76,6 @@ public:
 	vector<double> map_dy;
 
 	/**
-	 * Previous vehicle states (to calculate speed and acceleration)
-	 *
-	 */
-	VehiclePose car_t0;	//Previous state
-
-	/**
 	 * Index of the nearest waypoint
 	 */
 	int closestWaypoint;
@@ -99,9 +92,19 @@ public:
 	int target_lane;
 
 	/**
-	 * Just starting
+	 * Trajectory
 	 */
-	bool startup;
+	Trajectory trajectory;
+
+	/**
+	 * Time horizon
+	 */
+	double t = 1.0;
+	/**
+	 * Time matrix for trajectory generation
+	 */
+	MatrixXd T;
+	MatrixXd T_inverse;
 
 	int track_length;
 
@@ -138,11 +141,18 @@ public:
 
 	/**
 	 * Generate trajectories based on surrounding traffic and desired next state
+	 * state - requested state change
+	 * pose  - vehicle parameters
+	 * sorted_traffic - nearby traffic sorted by distance and lane
+	 * remainder - trajectory left of previous iteration
 	 */
 	Trajectory plan_trajectory(
 			FSM state,
 			VehiclePose pose,
-			vector<vector<VehiclePose>> sorted_traffic);
+			vector<vector<VehiclePose>> sorted_traffic,
+			int remainder,
+			double end_s,
+			double end_d);
 
 	Trajectory generate_trajectory(
 			FSM state,
