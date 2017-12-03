@@ -404,6 +404,7 @@ inline void apply_requested_state(
 	target_lane = ego_car.lane;
 	//df = lane_center(target_lane);
 	df = 6.0;
+	//df = ego_car.d;
 	target_s = 30;
 }
 
@@ -449,7 +450,7 @@ Trajectory TrajectoryPlanner::plan_trajectory(
 			target_d, target_v, target_s);
 
 	cout << "Previous State: car s, \t\tend_s, \t\tcar v, \t\tend v, \t\tremainder" << endl;
-	cout << "Previous State: " << ego_car.s << ", \t" << end_s << ", \t" << ego_car.v << ", \t" << trajectory.sf_dot << ", \t" << remainder << endl;
+	//cerr << "Previous State = " << ego_car.x << ", \t" << ego_car.y << ", \t" << ego_car.s << ", \t" << end_s << ", \t" << ego_car.v << ", \t" << trajectory.sf_dot << ", \t" << remainder << "\n";
 
 	/**
 	 * Initial State 's'
@@ -475,7 +476,7 @@ Trajectory TrajectoryPlanner::plan_trajectory(
 	/**
 	 * Setup the acceleration trajectory
 	 */
-	if ( !in_range(s_dot, target_v, 0.04) ) {
+	if ( !in_range(s_dot, target_v, 0.01) ) {
 		/**
 		 * solve for quintic trajectory coefficients
 		 */
@@ -548,26 +549,27 @@ Trajectory TrajectoryPlanner::plan_trajectory(
 	a_s << a[1], 2*a[2], 3*a[3], 4*a[4], 5*a[5], 0;
 	trajectory.s.clear();
 	trajectory.d.clear();
+	double ti = 0.0;
 
-	for (int i = 1; i < HORIZON-remainder; i++) {
-		double ti = i * INTERVAL;
+	for (int i = 1; i <= HORIZON-remainder; i++) {
+		ti = i * INTERVAL;
 		DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
 
-		if ( in_range(trajectory.sf_dot, target_v, 0.04) ) {
+		if ( in_range(trajectory.sf_dot, target_v, 0.01) ) {
 			// Cruising speed
 			st = st + trajectory.sf_dot * INTERVAL;
 		} else {
 			st = a.transpose() * DT;
 			trajectory.sf_dot = a_s.transpose() * DT;
 		}
-		trajectory.s.push_back( st );
+		trajectory.s.push_back(st);
 
 		if (state != FSM::KE) {
 			if (!in_range(dt, df, 0.01)) {
 				dt = b.transpose() * DT;
 			}
 		}
-		trajectory.d.push_back( dt );
+		trajectory.d.push_back(dt);
 	}
 
 	/**

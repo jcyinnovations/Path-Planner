@@ -127,7 +127,7 @@ int main() {
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
-          	cout << "\n\n\nVehicle: " << car_x << ", \t" << car_y << ", \t" << car_s << ", \t" << car_d << ", \t" << car_yaw << ", \t" << car_speed << endl;
+          	cout << "\n\n\nVehicle = " << car_x << ", \t" << car_y << ", \t" << car_s << ", \t" << car_d << ", \t" << car_yaw << ", \t" << car_speed << endl;
 
           	// Previous path data given to the Planner
           	vector<double> previous_path_x = j[1]["previous_path_x"];
@@ -166,7 +166,7 @@ int main() {
 			ego_car.s = car_s;
 			ego_car.d = car_d;
 			ego_car.yaw = deg2rad(car_yaw);
-			ego_car.v = car_speed;
+			ego_car.v = mph_to_mps(car_speed);
 			ego_car.id =-1;
 			int car_waypoint = ClosestWaypoint(car_x, car_y, map_waypoints_x, map_waypoints_y);
 			ego_car.waypoint = car_waypoint;
@@ -187,15 +187,15 @@ int main() {
 				}
 			}
 
-			cout << "Previous Path x: " << previous_path_x << endl;
-			cout << "Previous Path y: " << previous_path_y << endl;
+			cout << "Previous Path x = " << previous_path_x << endl;
+			cout << "Previous Path y = " << previous_path_y << endl;
 
 			vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
 			Trajectory trajectory = trajectory_planner.plan_trajectory(
 					FSM::KE, ego_car, traffic, remainder, end_path_s, end_path_d);
 
-			cout << "current Path s: " << trajectory.s << endl;
-			cout << "current Path d: " << trajectory.d << endl;
+			cout << "current Path s = " << trajectory.s << endl;
+			cout << "current Path d = " << trajectory.d << endl;
 
 			for(int i = 0; i < trajectory.s.size(); i++)
 			{
@@ -207,14 +207,15 @@ int main() {
 						s_dir);
 				next_x_vals.push_back(xy[0]);
 				next_y_vals.push_back(xy[1]);
+				cerr << xy[0] << "," << xy[1] << endl;
 			}
 
 			/**
 			 * DEBUG
 			 */
 			cout << "\nOutput Trajectory:" << endl;
-			cout << "x: " << next_x_vals << endl;
-			cout << "y: " << next_y_vals << endl;
+			cout << "x = " << next_x_vals << endl;
+			cout << "y = " << next_y_vals << endl;
 
 			msgJson["next_y"] = next_y_vals;
 			msgJson["next_x"] = next_x_vals;

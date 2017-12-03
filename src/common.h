@@ -41,7 +41,7 @@ namespace {
 	int TOTAL_LANES = 3;
 	int LANE_WIDTH  = 4;
 	double MAX_ACCELERATION = 0.5*10.0;//meters per second squared
-	double SPEED_LIMIT = 0.95 * 50.0; 	//miles per hour
+	double SPEED_LIMIT = 50.0; 	//miles per hour
 	double SPEED_LIMIT_MPS = mph_to_mps(SPEED_LIMIT);
 	double ROAD_MAX	 = TOTAL_LANES * LANE_WIDTH;
 	double ROAD_MIN	 = 0.0;
