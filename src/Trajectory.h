@@ -96,16 +96,6 @@ public:
 	 */
 	Trajectory trajectory;
 
-	/**
-	 * Time horizon
-	 */
-	double t = 1.0;
-	/**
-	 * Time matrix for trajectory generation
-	 */
-	MatrixXd T;
-	MatrixXd T_inverse;
-
 	int track_length;
 
 	/**
@@ -147,6 +137,17 @@ public:
 	 * remainder - trajectory left of previous iteration
 	 */
 	Trajectory plan_trajectory(
+			FSM state,
+			VehiclePose pose,
+			vector<vector<VehiclePose>> sorted_traffic,
+			int remainder,
+			double end_s,
+			double end_d);
+
+	/**
+	 * Only regenerate if something changes
+	 */
+	Trajectory plan_trajectory2(
 			FSM state,
 			VehiclePose pose,
 			vector<vector<VehiclePose>> sorted_traffic,

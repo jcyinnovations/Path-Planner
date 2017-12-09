@@ -226,7 +226,7 @@ inline bool in_range(double value, double target, double tolerance) {
 	return value >= lower && value <= upper;
 }
 
-enum class FSM { KE, CL, KB, CR, PR, PL };
+enum class FSM { KE, CL, KB, CR, PR, PL, START };
 
 //typedef typename vector<vector<FSM>> PathGrid;
 //typedef typename vector<vector<int>> MapGrid;
@@ -264,20 +264,26 @@ inline vector<U> subset(vector<U> source, int start, int length) {
 
 struct Trajectory {
 	Trajectory() :
+		t(0.0),
 		s(0.0),
 		d(0.0),
 		sf_dot(0.0),
 		target_lane(2),
-		target_state(FSM::KE),
+		target_v(0.0),
+		target_state(FSM::START),
 		state_possible(true) {}
 
 	vector<double> s;		//Trajectory x
 	vector<double> d;		//Trajectory y
 	FSM target_state;		//Requested state
 	int target_lane;		//Based on state
+	double target_v;		//Target speed
+	double t;				//Planner time
+
 	bool state_possible;	//can the state change be made
 	//Current Trajectory parameters
 	VectorXd a = VectorXd(6);
+	VectorXd a_s = VectorXd(6);
 	VectorXd b = VectorXd(6);
 	double sf_dot;			//Trajectory end speed
 };

@@ -127,7 +127,7 @@ int main() {
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
-          	cout << "\n\n\nVehicle = " << car_x << ", \t" << car_y << ", \t" << car_s << ", \t" << car_d << ", \t" << car_yaw << ", \t" << car_speed << endl;
+          	cout << "\n\n\nVehicle = " << car_x << ", \t\t" << car_y << ", \t\t" << car_s << ", \t" << car_d << ", \t" << car_yaw << ", \t" << car_speed << endl;
 
           	// Previous path data given to the Planner
           	vector<double> previous_path_x = j[1]["previous_path_x"];
@@ -191,7 +191,7 @@ int main() {
 			cout << "Previous Path y = " << previous_path_y << endl;
 
 			vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
-			Trajectory trajectory = trajectory_planner.plan_trajectory(
+			Trajectory trajectory = trajectory_planner.plan_trajectory2(
 					FSM::KE, ego_car, traffic, remainder, end_path_s, end_path_d);
 
 			cout << "current Path s = " << trajectory.s << endl;
