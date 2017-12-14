@@ -16,6 +16,7 @@
 #include <cmath>
 #include <algorithm>
 #include "Eigen-3.3/Eigen/Dense"
+#include "spline.h"
 
 using namespace std;
 
@@ -40,22 +41,45 @@ inline double mph_to_mps(double speed) {
 namespace {
 	int TOTAL_LANES = 3;
 	int LANE_WIDTH  = 4;
-	double MAX_ACCELERATION = 0.5*10.0;//meters per second squared
-	double SPEED_LIMIT = 50.0; 	//miles per hour
-	double SPEED_LIMIT_MPS = mph_to_mps(SPEED_LIMIT);
+	double MAX_ACCELERATION = 0.5*10.0;			//meters per second squared
+	double SPEED_LIMIT 		= 50.0; 			//miles per hour
+	double SPEED_LIMIT_MPS 	= mph_to_mps(SPEED_LIMIT);
 	double ROAD_MAX	 = TOTAL_LANES * LANE_WIDTH;
 	double ROAD_MIN	 = 0.0;
 	int SENSOR_RANGE = 10;						// construct grid from 2*N waypoints
 	double CELL_SIDE = LANE_WIDTH;				// size of grid cell (m)
 	double INTERVAL  = 0.02;					// update interval
 	int HORIZON	 	 = 50;						// number of planning intervals
-	// The max s value before wrapping around the track back to 0
-	double max_s = 6945.554;
+	double PLAN_AHEAD= 30;						// plan-ahead distance
+	double max_s	 = 6945.554;				// The max s value before wrapping around the track back to 0
 }
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
 inline double deg2rad(double x) { return x * pi() / 180; }
 inline double rad2deg(double x) { return x * 180 / pi(); }
+
+/**
+ * Uses waypoint splines to convert from Frenet to Cartesian coordinates
+ * ,
+ */
+inline vector<double> getXY2(
+		double s,
+		double d,
+		const tk::spline &spline_x,
+		const tk::spline &spline_y,
+		const tk::spline &spline_dir)
+{
+	double seg_x = spline_x(s);
+	double seg_y = spline_y(s);
+
+	double perp_heading = spline_dir(s);
+
+	double x = seg_x + d*cos(perp_heading);
+	double y = seg_y + d*sin(perp_heading);
+
+	return {x,y};
+}
+
 
 inline double distance(double x1, double y1, double x2, double y2)
 {
@@ -222,7 +246,7 @@ inline int current_lane(double d) {
  */
 inline bool in_range(double value, double target, double tolerance) {
 	double lower = target * (1-tolerance);
-	double upper = target * (1+tolerance);
+	double upper = target;// * (1+tolerance);
 	return value >= lower && value <= upper;
 }
 
@@ -267,14 +291,18 @@ struct Trajectory {
 		t(0.0),
 		s(0.0),
 		d(0.0),
+		x(0.0),
+		y(0.0),
 		sf_dot(0.0),
 		target_lane(2),
 		target_v(0.0),
 		target_state(FSM::START),
 		state_possible(true) {}
 
-	vector<double> s;		//Trajectory x
-	vector<double> d;		//Trajectory y
+	vector<double> s;		//Trajectory s
+	vector<double> d;		//Trajectory d
+	vector<double> x;		//Trajectory x
+	vector<double> y;		//Trajectory y
 	FSM target_state;		//Requested state
 	int target_lane;		//Based on state
 	double target_v;		//Target speed

@@ -10,7 +10,6 @@
 #include "json.hpp"
 #include "common.h"
 #include "Trajectory.h"
-#include "spline.h"
 
 using namespace std;
 
@@ -34,26 +33,6 @@ string hasData(string s) {
   }
   return "";
 }
-
-
-inline vector<double> getXY2(
-		double s,
-		double d,
-		const tk::spline &spline_x,
-		const tk::spline &spline_y,
-		const tk::spline &spline_dir)
-{
-	double seg_x = spline_x(s);
-	double seg_y = spline_y(s);
-
-	double perp_heading = spline_dir(s);
-
-	double x = seg_x + d*cos(perp_heading);
-	double y = seg_y + d*sin(perp_heading);
-
-	return {x,y};
-}
-
 
 int main() {
   uWS::Hub h;
@@ -93,14 +72,14 @@ int main() {
   	map_waypoints_dir.push_back(dir);
   }
 
-	tk::spline s_x;
-	s_x.set_points(map_waypoints_s, map_waypoints_x);
-	tk::spline s_y;
-	s_y.set_points(map_waypoints_s, map_waypoints_y);
-	tk::spline s_dir;
-	s_dir.set_points(map_waypoints_s, map_waypoints_dir);
+  /**
+   * Create splines mapping s to cartesian coordinates from the map data
+   */
+  trajectory_planner.s_x.set_points(map_waypoints_s, map_waypoints_x);
+  trajectory_planner.s_y.set_points(map_waypoints_s, map_waypoints_y);
+  trajectory_planner.s_dir.set_points(map_waypoints_s, map_waypoints_dir);
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &s_x,&s_y,&s_dir](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -179,12 +158,17 @@ int main() {
 			 * Sort traffic before sending to the behavior planner
 			 */
 			int remainder = previous_path_x.size();
+			double end_x;
+			double end_y;
+
 			/**DEBUG**/
 			if (remainder > 0) {
 				for (int i=0; i<remainder; i++) {
 					next_x_vals.push_back(previous_path_x[i]);
 					next_y_vals.push_back(previous_path_y[i]);
 				}
+				end_x = previous_path_x.back();
+				end_y = previous_path_y.back();
 			}
 
 			cout << "Previous Path x = " << previous_path_x << endl;
@@ -192,30 +176,15 @@ int main() {
 
 			vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
 			Trajectory trajectory = trajectory_planner.plan_trajectory2(
-					FSM::KE, ego_car, traffic, remainder, end_path_s, end_path_d);
+					FSM::KE, ego_car, traffic, remainder, end_path_s, end_path_d, end_x, end_y);
 
-			cout << "current Path s = " << trajectory.s << endl;
-			cout << "current Path d = " << trajectory.d << endl;
-
-			for(int i = 0; i < trajectory.s.size(); i++)
-			{
-				vector<double> xy = getXY2(
-						trajectory.s[i],
-						trajectory.d[i],
-						s_x,
-						s_y,
-						s_dir);
-				next_x_vals.push_back(xy[0]);
-				next_y_vals.push_back(xy[1]);
-				cerr << xy[0] << "," << xy[1] << endl;
+			for (int i = 0; i < trajectory.x.size(); i++) {
+				next_x_vals.push_back(trajectory.x[i]);
+				next_y_vals.push_back(trajectory.y[i]);
 			}
 
-			/**
-			 * DEBUG
-			 */
-			cout << "\nOutput Trajectory:" << endl;
-			cout << "x = " << next_x_vals << endl;
-			cout << "y = " << next_y_vals << endl;
+			cout << "New Path x = " << next_x_vals << endl;
+			cout << "New Path y = " << next_y_vals << endl;
 
 			msgJson["next_y"] = next_y_vals;
 			msgJson["next_x"] = next_x_vals;

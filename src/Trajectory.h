@@ -108,6 +108,13 @@ public:
 	 */
 	VehiclePose location;
 
+	/**
+	 * Splines of the route
+	 */
+	tk::spline s_x;
+	tk::spline s_y;
+	tk::spline s_dir;
+
 	TrajectoryPlanner(
 			vector<double> x,
 			vector<double> y,
@@ -153,12 +160,21 @@ public:
 			vector<vector<VehiclePose>> sorted_traffic,
 			int remainder,
 			double end_s,
-			double end_d);
+			double end_d,
+			double end_x,
+			double end_y);
 
-	Trajectory generate_trajectory(
-			FSM state,
+	/**
+	 *Ensure proper spacing of points
+	 */
+	void smooth_trajectory(
+			vector<double> px,
+			vector<double> py,
 			VehiclePose ego_car,
-			vector<vector<VehiclePose>> sorted_traffic);
+			vector<vector<VehiclePose>> sorted_traffic,
+			int rem,
+			double end_x,
+			double end_y);
 
 	/**
 	 * Find the best route forward. Based on Hybrid A* search

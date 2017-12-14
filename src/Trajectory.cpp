@@ -687,7 +687,9 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 		vector<vector<VehiclePose>> sorted_traffic,
 		int rem,
 		double end_s,
-		double end_d) {
+		double end_d,
+		double end_x,
+		double end_y) {
 
 	/**
 	 * Assess how to obey the state request and change df and sf_dot accordingly
@@ -695,6 +697,7 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 	double target_v; // Target speed. Either speed limit of speed of car ahead
 	double target_d; // Target lateral location (equates to lane)
 	double target_s; // Limit to trajectory by distance (otherwise limit by time)
+
 	apply_requested_state(state, ego_car, sorted_traffic, trajectory, target_lane,
 			target_d, target_v, target_s);
 
@@ -703,8 +706,19 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 
 	double st = 0.0;
 	double dt = 0.0;
+	double xt = 0.0;
+	double yt = 0.0;
 
-	if (trajectory.target_state != state || !in_range(target_v, trajectory.target_v, 0.01) ) {
+	/**
+	 * Only plan a new trajectory when requested state or speed have changed
+	 */
+	if ( trajectory.target_state == state || in_range(target_v, trajectory.target_v, 0.01) ) {
+		st = end_s;
+		dt = end_d;
+		xt = end_x;
+		yt = end_y;
+	} else {
+		//cout << "NEW TRAJECTORY\n";
 		//New Trajectory. Reset state
 		trajectory.target_state = state;		//New state requested
 		trajectory.target_v 	= target_v;		//Match speed ahead or speed limit
@@ -717,20 +731,22 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 		//Plan new trajectory
 		solve_s_quintic(ego_car, trajectory);
 		solve_d_quintic(ego_car, trajectory);
-
-	} else {
-		st = end_s;
-		dt = end_d;
+		xt = ego_car.x;
+		yt = ego_car.y;
 	}
 	trajectory.s.clear();
 	trajectory.d.clear();
+	trajectory.x.clear();
+	trajectory.y.clear();
 
 	//Generate trajectory
 	VectorXd DT(6);
-	double ti = trajectory.t + INTERVAL;
+	double ti = trajectory.t; //+ INTERVAL;
 	dt = 6;
 
-	for (int i = 1; i <= HORIZON-rem; i++) {
+	vector<double> px;
+	vector<double> py;
+	for (int i = 1; i <= HORIZON; i++) {
 		ti = ti + INTERVAL;
 		DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
 
@@ -752,20 +768,51 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 		**/
 		trajectory.d.push_back(dt);
 		trajectory.t = ti;
+		/**
+		 * Convert 10 points to x,y for trajectory smoothing operation
+		 */
+		vector<double> xy = getXY2(
+				trajectory.s.back(),
+				trajectory.d.back(),
+				s_x,
+				s_y,
+				s_dir);
+		px.push_back(xy[0]);
+		py.push_back(xy[1]);
 	}
 
+	smooth_trajectory(px, py, ego_car, sorted_traffic, rem, xt, yt);
 	return trajectory;
 }
+
 /**
  * plot a trajectory for the target speed and path
  */
-Trajectory TrajectoryPlanner::generate_trajectory(
-		FSM state,
+void TrajectoryPlanner::smooth_trajectory(
+		vector<double> px,
+		vector<double> py,
 		VehiclePose ego_car,
-		vector<vector<VehiclePose>> sorted_traffic) {
-	Trajectory trajectory;
-	//TODO:
-	return trajectory;
+		vector<vector<VehiclePose>> sorted_traffic,
+		int rem,
+		double end_x,
+		double end_y) {
+
+	/**
+	 * Now rebuild trajectory with even spacing to remove jitter
+	 */
+	tk::spline snew;
+	snew.set_points(px, py);
+	double target_x = end_x + 30;
+	double target_y = snew(target_x);
+	double target_distance = sqrt(pow(30, 2) + pow(target_y-end_y, 2));
+	//double N = target_distance / (INTERVAL * SPEED_LIMIT_MPS * 0.95);
+	double N = target_distance / (INTERVAL * trajectory.sf_dot);
+
+	for (int i = 1; i <= HORIZON-rem; i++) {
+		end_x = end_x + 30/N;
+		trajectory.x.push_back(end_x);
+		trajectory.y.push_back(snew(end_x));
+	}
 }
 
 
