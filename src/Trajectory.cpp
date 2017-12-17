@@ -646,14 +646,13 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	double df_dotdot= 0.0; 									//final acceleration (any adjustment done in time horizon 't')
 	double df_dot	= 0.0; 									//Adjustment over so no lateral movement necessary
 
-	double distance = fabs(df - d);
+	double distance = df - d;
+	d_dotdot = 2 * distance / (t*t);
 
 	/**
 	 * Setup coefficients
 	 */
 	if ( !in_range(d, df, 0.01) ) {
-		t = sqrt( 2 * fabs(df - d) / d_dotdot );
-
 		T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
 			3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
 			6*t, 			12*pow(t, 2), 	20*pow(t, 3);
@@ -733,6 +732,7 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 			//Same state so reuse old trajectory points, starting from end
 			Coord c = trajectory.plan.back();
 			ego_car.s = c.s;
+			ego_car.d = c.d;
 			ego_car.v = c.v;
 			st = end_s;
 			dt = end_d;
@@ -767,7 +767,7 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 
 		VectorXd DT(6);
 		double ti = 0.0; //trajectory.t; //+ INTERVAL;
-		dt = 6;
+		dt = 0.0;
 
 		vector<double> px;
 		vector<double> py;
@@ -793,13 +793,12 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 			trajectory.s.push_back(st);
 			c.s = st;
 
-			/**
-			if ( in_range(dt, lane_center(trajectory.target_lane),0.01 ) ) {
+			if ( in_range(dt, lane_center(trajectory.target_lane), 0.01) ) {
 				trajectory.b << lane_center(trajectory.target_lane), 0, 0, 0, 0, 0;
 			} else {
 				dt = trajectory.b.transpose() * DT;
 			}
-			**/
+
 			trajectory.d.push_back(dt);
 			c.d = dt;
 			trajectory.t = ti;
