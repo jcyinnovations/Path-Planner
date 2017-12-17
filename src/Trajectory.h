@@ -158,11 +158,10 @@ public:
 			FSM state,
 			VehiclePose pose,
 			vector<vector<VehiclePose>> sorted_traffic,
-			int remainder,
 			double end_s,
 			double end_d,
-			double end_x,
-			double end_y);
+			vector<double> previous_path_x,
+			vector<double> previous_path_y);
 
 	/**
 	 *Ensure proper spacing of points

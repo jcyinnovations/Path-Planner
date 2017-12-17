@@ -312,22 +312,25 @@ inline void apply_requested_state(
 		double& sf_dot,
 		double& target_s) {
 
-	sf_dot = SPEED_LIMIT_MPS; //Always unless conditions dictate otherwise
-	target_s = 30;
+	sf_dot 	= SPEED_LIMIT_MPS*0.95; //Always unless conditions dictate otherwise
+	target_s= PLAN_AHEAD;
 	/**
 	 * Update final state position. Conditions for update:
 	 * 1. Time horizon is length of the trajectory (50 points or 1 second)
 	 * 2. Target speed: speed limit or speed of overtaking traffic (behind) in the target lane
 	 * 3. Acceleration: 0
 	 * 4. Sf: the distance of travel over the time horizon (equivalent to speed for 1 second)
+	 *
+	 * To accommodate slow moving vehicles in the target lane, change the state to KB if
+	 * current state is the same as previous
 	 */
 	if (state == FSM::KE) {
 		//Keep Lane
 		new_trajectory.state_possible = true;
 		target_lane = ego_car.lane;
 		df = lane_center(target_lane);
-	} else
-	if (state == FSM::CL) {
+	}
+	else if (state == FSM::CL) {
 		if (ego_car.lane > 1) {
 			//Change to left lane if possible
 			new_trajectory.state_possible = true;
@@ -336,25 +339,12 @@ inline void apply_requested_state(
 			 * as far as traffic will allow
 			 */
 			target_lane = ego_car.lane - 1;
-			if (sorted_traffic[target_lane-1].size() > 0) {
-				for (VehiclePose current_car : sorted_traffic[target_lane-1]) {
-					if (current_car.leading) {
-						if (current_car.v < SPEED_LIMIT_MPS){
-							sf_dot = current_car.v * cos(current_car.yaw);
-						}
-						//Traffic is sorted by leading and distance so quit loop after first
-						//'leading' hit
-						break;
-					}
-				}
-			}
 			//Update motion parameters
 			df = lane_center(target_lane);
 		} else
 			new_trajectory.state_possible = false;
-	} else
-
-	if (state == FSM::CR) {
+	}
+	else if (state == FSM::CR) {
 		if (ego_car.lane < 3) {
 			//Change to right lane if possible
 			new_trajectory.state_possible = true;
@@ -363,43 +353,37 @@ inline void apply_requested_state(
 			 * as far as traffic will allow
 			 */
 			target_lane = ego_car.lane + 1;
-			if (sorted_traffic[target_lane-1].size() > 0) {
-				for (VehiclePose current_car : sorted_traffic[target_lane-1]) {
-					if (current_car.leading) {
-						if (current_car.v < SPEED_LIMIT_MPS){
-							sf_dot = current_car.v * cos(current_car.yaw);
-						}
-						//Traffic is sorted by leading and distance so quit loop after first
-						//'leading' hit
-						break;
-					}
-				}
-			}
 			//Update motion parameters
 			df = lane_center(target_lane);
 		} else
 			new_trajectory.state_possible = false;
-	} else
-	if (state == FSM::PL) {
+	}
+	else if (state == FSM::PL) {
 		/**
 		 * To Keep Lane: develop a trajectory that keeps you behind cars ahead
 		 * So match speed of cars ahead if they are lower than the speed limit
 		 */
 		target_lane = ego_car.lane;
-		if (sorted_traffic[target_lane-1].size() > 0) {
-			for (VehiclePose current_car : sorted_traffic[target_lane-1]) {
-				if (current_car.leading) {
-					if (current_car.v < ego_car.v){
-						sf_dot = current_car.v;
-					}
-					//Traffic is sorted by leading and distance so quit loop after first
-					//'leading' hit
-					break;
-				}
-			}
-		}
 		//Update motion parameters
 		df = lane_center(target_lane);
+	}
+	/**
+	 * Adjust speed for target lane
+	 */
+	if (sorted_traffic[target_lane-1].size() > 0) {
+		for (VehiclePose current_car : sorted_traffic[target_lane-1]) {
+			if (current_car.leading) {
+				double gap = fabs(current_car.s - ego_car.s);
+				if (current_car.v < ego_car.v && gap <= PLAN_AHEAD) {
+					sf_dot = current_car.v;
+					cout << "NEW TARGET SPEED: " << sf_dot << endl;
+					new_trajectory.target_state = FSM::KB;
+				}
+				//Traffic is sorted by leading and distance so quit loop after first
+				//'leading' hit
+				break;
+			}
+		}
 	}
 }
 
@@ -594,23 +578,25 @@ inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	/**
 	 * Initial State 's'
 	 */
-	double target_s = 30;
-	double t 		= 0.0;
-
 	MatrixXd T(3,3);
 	MatrixXd T_inverse(3,3);
 	double s 		= ego_car.s;
 	double s_dot 	= ego_car.v;
+
 	double s_dotdot	= MAX_ACCELERATION;
+
+	if (trajectory.target_v < s_dot)
+		s_dotdot = -MAX_ACCELERATION;
+
+	double t 		= (trajectory.target_v - s_dot)/s_dotdot;
+	double target_s = s_dot*t + s_dotdot * t*t/2;
 
 	/**
 	 * Final State 's'
 	 */
 	double sf		= s + target_s;
-	double sf_dot	= min( trajectory.target_v, sqrt(s_dot*s_dot + 2*s_dotdot*target_s) );	//final speed
-	double sf_dotdot= MAX_ACCELERATION;				//final acceleration
-	double v_diff 	= sf_dot - s_dot;
-	double dist_a 	= v_diff*v_diff/(2*s_dotdot);	//distance travelled during acceleration
+	double sf_dot	= trajectory.target_v;	//final speed
+	double sf_dotdot= 0.0;					//final acceleration
 
 	/**
 	 * Setup the acceleration trajectory
@@ -619,7 +605,6 @@ inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 		/**
 		 * solve for quintic trajectory coefficients
 		 */
-		t = fabs(v_diff) / s_dotdot;
 		T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
 			 3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
 			 6*t, 			12*pow(t, 2), 	20*pow(t, 3);
@@ -634,14 +619,16 @@ inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	} else {
 		// Already at required speed
 		trajectory.a << s, s_dot, 0, 0, 0, 0;
+		t = 4.0;	//Set horizon to 4 seconds if already at speed limit
 	}
 	trajectory.a_s << trajectory.a[1], 	2*trajectory.a[2], 	3*trajectory.a[3],
 					  4*trajectory.a[4], 5*trajectory.a[5], 0;
+	trajectory.t = t;
 }
 
 
 void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
-	double t 		= 0.0;
+	double t 		= 3.0;
 
 	MatrixXd T(3,3);
 	MatrixXd T_inverse(3,3);
@@ -650,7 +637,7 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	 */
 	double d 		= ego_car.d;
 	double d_dot 	= 0.0;
-	double d_dotdot	= 0.15;
+	double d_dotdot	= 0.05;
 
 	/**
 	 * Final State 'd'
@@ -658,6 +645,8 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	double df		= lane_center(trajectory.target_lane);	//center of lane chosen below
 	double df_dotdot= 0.0; 									//final acceleration (any adjustment done in time horizon 't')
 	double df_dot	= 0.0; 									//Adjustment over so no lateral movement necessary
+
+	double distance = fabs(df - d);
 
 	/**
 	 * Setup coefficients
@@ -680,17 +669,32 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 		trajectory.b << df, 0, 0, 0, 0, 0;
 }
 
-
+/**
+ * Generate the trajectory based on the requested state and current conditions.
+ *
+ * Send the full trajectory to the car and re-plan when the current plot is
+ * less than the required horizon (1 second).
+ *
+ * If a new 'state' is requested or conditons change (slow car ahead), discard remainder
+ * and plot a new trajectory
+ *
+ */
 Trajectory TrajectoryPlanner::plan_trajectory2(
 		FSM state,
 		VehiclePose ego_car,
 		vector<vector<VehiclePose>> sorted_traffic,
-		int rem,
 		double end_s,
 		double end_d,
-		double end_x,
-		double end_y) {
+		vector<double> previous_path_x,
+		vector<double> previous_path_y) {
 
+	int rem = previous_path_x.size();
+	double end_x;
+	double end_y;
+	if (rem > 0) {
+		end_x = previous_path_x.back();
+		end_y = previous_path_y.back();
+	}
 	/**
 	 * Assess how to obey the state request and change df and sf_dot accordingly
 	 */
@@ -709,79 +713,139 @@ Trajectory TrajectoryPlanner::plan_trajectory2(
 	double xt = 0.0;
 	double yt = 0.0;
 
+	trajectory.x.clear();
+	trajectory.y.clear();
+
 	/**
-	 * Only plan a new trajectory when requested state or speed have changed
+	 * Plan a new trajectory when requested state or speed have changed,
+	 * or the remainder of the old trajectory is less than the HORIZON limit (1 second or 50 intervals)
 	 */
-	if ( trajectory.target_state == state || in_range(target_v, trajectory.target_v, 0.01) ) {
-		st = end_s;
-		dt = end_d;
-		xt = end_x;
-		yt = end_y;
-	} else {
-		//cout << "NEW TRAJECTORY\n";
+	if ( trajectory.target_state != state ||
+			trajectory.plan.size() < HORIZON ) {
 		//New Trajectory. Reset state
 		trajectory.target_state = state;		//New state requested
 		trajectory.target_v 	= target_v;		//Match speed ahead or speed limit
 		trajectory.t			= 0.0;			//Reset timer
 		trajectory.sf_dot		= 0.0;			//update this after trajectory generation with new end speed
 		trajectory.target_lane  = target_lane;
-		st = ego_car.s;
-		dt = ego_car.d;
+
+		if (trajectory.target_state == state && !trajectory.plan.empty()) {
+			//Same state so reuse old trajectory points, starting from end
+			Coord c = trajectory.plan.back();
+			ego_car.s = c.s;
+			ego_car.v = c.v;
+			st = end_s;
+			dt = end_d;
+			xt = end_x;
+			yt = end_y;
+		} else {
+			/**
+			 * Use the new trajectory immediately.
+			 * Start from current car location and speed
+			 * Clear the trajectory plan
+			 * Reset remainder to 0
+			 */
+			st = ego_car.s;
+			dt = ego_car.d;
+			xt = ego_car.x;
+			yt = ego_car.y;
+			std::swap(trajectory.plan, EMPTY_Q);
+			rem = 0;
+		}
 
 		//Plan new trajectory
 		solve_s_quintic(ego_car, trajectory);
 		solve_d_quintic(ego_car, trajectory);
-		xt = ego_car.x;
-		yt = ego_car.y;
-	}
-	trajectory.s.clear();
-	trajectory.d.clear();
-	trajectory.x.clear();
-	trajectory.y.clear();
 
-	//Generate trajectory
-	VectorXd DT(6);
-	double ti = trajectory.t; //+ INTERVAL;
-	dt = 6;
+		/**
+		 * Generate the trajectory and endpoints
+		 */
+		trajectory.s.clear();
+		trajectory.d.clear();
+		trajectory.x.clear();
+		trajectory.y.clear();
 
-	vector<double> px;
-	vector<double> py;
-	for (int i = 1; i <= HORIZON; i++) {
-		ti = ti + INTERVAL;
-		DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
+		VectorXd DT(6);
+		double ti = 0.0; //trajectory.t; //+ INTERVAL;
+		dt = 6;
 
-		if ( in_range(trajectory.sf_dot, target_v, 0.1) ) {
-			// Cruising speed
-			st = st + trajectory.sf_dot * INTERVAL;
-		} else {
+		vector<double> px;
+		vector<double> py;
+
+		int horizon = fabs(trajectory.t) / INTERVAL;
+		for (int i = 1; i <= horizon; i++) {
+			Coord c;
+			ti = ti + INTERVAL;
+			DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
+
 			st = trajectory.a.transpose() * DT;
 			trajectory.sf_dot = trajectory.a_s.transpose() * DT;
-		}
-		trajectory.s.push_back(st);
+			c.v = trajectory.sf_dot;
+			/**
+			if ( in_range(trajectory.sf_dot, target_v, 0.1) ) {
+				// Cruising speed
+				st = st + trajectory.sf_dot * INTERVAL;
+			} else {
+				st = trajectory.a.transpose() * DT;
+				trajectory.sf_dot = trajectory.a_s.transpose() * DT;
+			}
+			**/
+			trajectory.s.push_back(st);
+			c.s = st;
 
-		/**
-		if ( in_range(dt, lane_center(trajectory.target_lane),0.01 ) ) {
-			trajectory.b << lane_center(trajectory.target_lane), 0, 0, 0, 0, 0;
-		} else {
-			dt = trajectory.b.transpose() * DT;
+			/**
+			if ( in_range(dt, lane_center(trajectory.target_lane),0.01 ) ) {
+				trajectory.b << lane_center(trajectory.target_lane), 0, 0, 0, 0, 0;
+			} else {
+				dt = trajectory.b.transpose() * DT;
+			}
+			**/
+			trajectory.d.push_back(dt);
+			c.d = dt;
+			trajectory.t = ti;
+			vector<double> xy = getXY2(
+					trajectory.s.back(),
+					trajectory.d.back(),
+					s_x,
+					s_y,
+					s_dir);
+
+			c.x = xy[0];
+			c.y = xy[1];
+			trajectory.plan.push(c);
 		}
-		**/
-		trajectory.d.push_back(dt);
-		trajectory.t = ti;
-		/**
-		 * Convert 10 points to x,y for trajectory smoothing operation
-		 */
-		vector<double> xy = getXY2(
-				trajectory.s.back(),
-				trajectory.d.back(),
-				s_x,
-				s_y,
-				s_dir);
-		px.push_back(xy[0]);
-		py.push_back(xy[1]);
 	}
 
-	smooth_trajectory(px, py, ego_car, sorted_traffic, rem, xt, yt);
+	/**
+	 * Reuse previous path (if needed)
+	 */
+	if (rem > 0) {
+		for (int i=0; i<rem; i++) {
+			trajectory.x.push_back(previous_path_x[i]);
+			trajectory.y.push_back(previous_path_y[i]);
+		}
+		end_x = previous_path_x.back();
+		end_y = previous_path_y.back();
+	}
+	/**
+	 * Append new plan
+	 */
+	for (int i=1; i < HORIZON-rem; i++) {
+		Coord c = trajectory.plan.front();
+		trajectory.plan.pop();
+		trajectory.x.push_back(c.x);
+		trajectory.y.push_back(c.y);
+	}
+
+	/**
+	 * DEBUG:
+	**/
+	cout << "____________________>" << endl;
+	cout << "Generated Trajectory:" << endl;
+	cout << "s: \n" << trajectory.s << endl;
+	cout << "d: \n" << trajectory.d << endl;
+	cout << "____________________|" << endl;
+	//smooth_trajectory(px, py, ego_car, sorted_traffic, rem, xt, yt);
 	return trajectory;
 }
 
@@ -808,7 +872,7 @@ void TrajectoryPlanner::smooth_trajectory(
 	//double N = target_distance / (INTERVAL * SPEED_LIMIT_MPS * 0.95);
 	double N = target_distance / (INTERVAL * trajectory.sf_dot);
 
-	for (int i = 1; i <= HORIZON-rem; i++) {
+	for (int i = 1; i <= 50-rem; i++) {
 		end_x = end_x + 30/N;
 		trajectory.x.push_back(end_x);
 		trajectory.y.push_back(snew(end_x));

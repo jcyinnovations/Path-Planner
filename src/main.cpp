@@ -157,34 +157,23 @@ int main() {
 			/**
 			 * Sort traffic before sending to the behavior planner
 			 */
-			int remainder = previous_path_x.size();
-			double end_x;
-			double end_y;
-
-			/**DEBUG**/
-			if (remainder > 0) {
-				for (int i=0; i<remainder; i++) {
-					next_x_vals.push_back(previous_path_x[i]);
-					next_y_vals.push_back(previous_path_y[i]);
-				}
-				end_x = previous_path_x.back();
-				end_y = previous_path_y.back();
-			}
 
 			cout << "Previous Path x = " << previous_path_x << endl;
 			cout << "Previous Path y = " << previous_path_y << endl;
 
 			vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
 			Trajectory trajectory = trajectory_planner.plan_trajectory2(
-					FSM::KE, ego_car, traffic, remainder, end_path_s, end_path_d, end_x, end_y);
+					FSM::KE, ego_car, traffic, end_path_s, end_path_d, previous_path_x, previous_path_y);
 
-			for (int i = 0; i < trajectory.x.size(); i++) {
+			int i = 0;
+			while (i < trajectory.x.size() ) {
 				next_x_vals.push_back(trajectory.x[i]);
 				next_y_vals.push_back(trajectory.y[i]);
+				i++;
 			}
 
-			cout << "New Path x = " << next_x_vals << endl;
-			cout << "New Path y = " << next_y_vals << endl;
+			//cout << "New Path x = " << next_x_vals << endl;
+			//cout << "New Path y = " << next_y_vals << endl;
 
 			msgJson["next_y"] = next_y_vals;
 			msgJson["next_x"] = next_x_vals;

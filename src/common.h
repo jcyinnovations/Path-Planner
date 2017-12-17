@@ -38,6 +38,15 @@ inline double mph_to_mps(double speed) {
 	return 0.44704 * speed;
 }
 
+
+struct Coord {
+	double s;
+	double d;
+	double x;
+	double y;
+	double v;
+};
+
 namespace {
 	int TOTAL_LANES = 3;
 	int LANE_WIDTH  = 4;
@@ -50,8 +59,9 @@ namespace {
 	double CELL_SIDE = LANE_WIDTH;				// size of grid cell (m)
 	double INTERVAL  = 0.02;					// update interval
 	int HORIZON	 	 = 50;						// number of planning intervals
-	double PLAN_AHEAD= 30;						// plan-ahead distance
+	double PLAN_AHEAD= 60;						// plan-ahead distance
 	double max_s	 = 6945.554;				// The max s value before wrapping around the track back to 0
+	queue<Coord> EMPTY_Q;
 }
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -79,7 +89,6 @@ inline vector<double> getXY2(
 
 	return {x,y};
 }
-
 
 inline double distance(double x1, double y1, double x2, double y2)
 {
@@ -250,6 +259,15 @@ inline bool in_range(double value, double target, double tolerance) {
 	return value >= lower && value <= upper;
 }
 
+/**
+ *KE: Keep Lane (cruise in current lane at target speed)
+ *CL: Change Left
+ *KB: Keep Back (Slow down or reverse as needed)
+ *CR: Change Right
+ *PR: Prepare for right turn
+ *PL: Prepare for left turn
+ *START: Initial state
+ */
 enum class FSM { KE, CL, KB, CR, PR, PL, START };
 
 //typedef typename vector<vector<FSM>> PathGrid;
@@ -303,10 +321,14 @@ struct Trajectory {
 	vector<double> d;		//Trajectory d
 	vector<double> x;		//Trajectory x
 	vector<double> y;		//Trajectory y
+
 	FSM target_state;		//Requested state
 	int target_lane;		//Based on state
 	double target_v;		//Target speed
 	double t;				//Planner time
+
+	queue<Coord> plan;			//Plan this
+	vector<Coord> drive_cache;	//Drive this
 
 	bool state_possible;	//can the state change be made
 	//Current Trajectory parameters
@@ -378,7 +400,7 @@ inline vector<vector<VehiclePose>> sort_traffic(
   		p.vx = sf[3];
   		p.vy = sf[4];
   		p.yaw= sf[7];
-  		p.v  = sf[4] / sin(p.yaw);
+  		p.v  = sqrt(sf[3]*sf[3] + sf[4]*sf[4]);
   		p.s  = sf[5];
   		p.d  = sf[6];
   		p.lane = current_lane(sf[6]);
