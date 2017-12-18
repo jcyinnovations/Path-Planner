@@ -311,11 +311,12 @@ struct Trajectory {
 		d(0.0),
 		x(0.0),
 		y(0.0),
-		sf_dot(0.0),
+		end_v(0.0),
 		target_lane(2),
 		target_v(0.0),
 		target_state(FSM::START),
-		state_possible(true) {}
+		end_d(0.0),
+		target_acc(0.0) {}
 
 	vector<double> s;		//Trajectory s
 	vector<double> d;		//Trajectory d
@@ -330,12 +331,13 @@ struct Trajectory {
 	queue<Coord> plan;			//Plan this
 	vector<Coord> drive_cache;	//Drive this
 
-	bool state_possible;	//can the state change be made
 	//Current Trajectory parameters
-	VectorXd a = VectorXd(6);
-	VectorXd a_s = VectorXd(6);
-	VectorXd b = VectorXd(6);
-	double sf_dot;			//Trajectory end speed
+	VectorXd a 		= VectorXd(6);
+	VectorXd a_s 	= VectorXd(6);
+	VectorXd b 		= VectorXd(6);
+	double end_v;				//Trajectory end speed
+	double end_d;				//Trajectory end lateral position
+	double target_acc;			//Trajectory acceleration
 };
 
 struct VehiclePose {

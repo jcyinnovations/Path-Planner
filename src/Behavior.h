@@ -27,6 +27,9 @@ class Behavior {
 
 public:
 	TrajectoryPlanner trajectory_planner;
+
+	Trajectory trajectory;
+
 	double weight_speed;
 	double weight_lane_keep;
 	double weight_acceleration;
@@ -44,9 +47,6 @@ public:
 
 	virtual ~Behavior();
 
-	/**
-	 * Naive Bayes Estimation of future state
-	 */
 	FSM transition_function(
 			vector<int>predictions,
 			FSM current_state,

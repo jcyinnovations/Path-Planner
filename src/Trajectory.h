@@ -91,11 +91,6 @@ public:
 	 */
 	int target_lane;
 
-	/**
-	 * Trajectory
-	 */
-	Trajectory trajectory;
-
 	int track_length;
 
 	/**
@@ -143,37 +138,19 @@ public:
 	 * sorted_traffic - nearby traffic sorted by distance and lane
 	 * remainder - trajectory left of previous iteration
 	 */
-	Trajectory plan_trajectory(
-			FSM state,
-			VehiclePose pose,
-			vector<vector<VehiclePose>> sorted_traffic,
-			int remainder,
-			double end_s,
-			double end_d);
 
 	/**
 	 * Only regenerate if something changes
 	 */
-	Trajectory plan_trajectory2(
+	void plan_trajectory(
 			FSM state,
 			VehiclePose pose,
 			vector<vector<VehiclePose>> sorted_traffic,
 			double end_s,
 			double end_d,
 			vector<double> previous_path_x,
-			vector<double> previous_path_y);
-
-	/**
-	 *Ensure proper spacing of points
-	 */
-	void smooth_trajectory(
-			vector<double> px,
-			vector<double> py,
-			VehiclePose ego_car,
-			vector<vector<VehiclePose>> sorted_traffic,
-			int rem,
-			double end_x,
-			double end_y);
+			vector<double> previous_path_y,
+			Trajectory &trajectory);
 
 	/**
 	 * Find the best route forward. Based on Hybrid A* search

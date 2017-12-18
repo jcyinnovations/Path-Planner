@@ -17,7 +17,7 @@ using namespace std;
 using json = nlohmann::json;
 
 TrajectoryPlanner trajectory_planner;
-
+Trajectory 		  trajectory;
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -115,12 +115,6 @@ int main() {
           	double end_path_s = j[1]["end_path_s"];
           	double end_path_d = j[1]["end_path_d"];
 
-          	/**
-          	 * DEBUG:
-          	cout << "Previous Path x: \n" << previous_path_x;
-          	cout << "Previous Path end s, d: " << end_path_s << ", " << end_path_d;
-          	 */
-
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
           	auto sensor_fusion = j[1]["sensor_fusion"];
           	vector<vector<double>> sensor_data;
@@ -162,8 +156,8 @@ int main() {
 			cout << "Previous Path y = " << previous_path_y << endl;
 
 			vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
-			Trajectory trajectory = trajectory_planner.plan_trajectory2(
-					FSM::KE, ego_car, traffic, end_path_s, end_path_d, previous_path_x, previous_path_y);
+			trajectory_planner.plan_trajectory(
+					FSM::KE, ego_car, traffic, end_path_s, end_path_d, previous_path_x, previous_path_y, trajectory);
 
 			int i = 0;
 			while (i < trajectory.x.size() ) {
@@ -171,9 +165,6 @@ int main() {
 				next_y_vals.push_back(trajectory.y[i]);
 				i++;
 			}
-
-			//cout << "New Path x = " << next_x_vals << endl;
-			//cout << "New Path y = " << next_y_vals << endl;
 
 			msgJson["next_y"] = next_y_vals;
 			msgJson["next_x"] = next_x_vals;
