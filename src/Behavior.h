@@ -25,46 +25,44 @@ using namespace std;
  */
 class Behavior {
 
-public:
-	TrajectoryPlanner trajectory_planner;
+ public:
+  TrajectoryPlanner trajectory_planner;
 
-	Trajectory trajectory;
+  double weight_speed;
+  double weight_lane_keep;
+  double weight_acceleration;
+  double weight_lane_target;
+  double weight_on_road;
 
-	double weight_speed;
-	double weight_lane_keep;
-	double weight_acceleration;
-	double weight_lane_target;
-	double weight_on_road;
+  double v_target;
+  double v_limit;
+  double v_buffer;
+  double cost_stop;
 
-	double v_target;
-	double v_limit;
-	double v_buffer;
-	double cost_stop;
+  double a_max;
 
-	double a_max;
+  Behavior();
 
-	Behavior();
+  ~Behavior();
 
-	virtual ~Behavior();
+  void transition_function(SharedData shared, vector<int> predictions,
+                          VehiclePose ego_car, vector<vector<VehiclePose>> traffic,
+                          double end_path_s, double end_path_d,
+                          vector<double> previous_path_x,
+                          vector<double> previous_path_y,
+                          Trajectory &trajectory);
 
-	FSM transition_function(
-			vector<int>predictions,
-			FSM current_state,
-			VehiclePose pose,
-			vector<vector<VehiclePose>> sorted_traffic);
+  double cost_function(Trajectory trajectory);
 
-	double cost_function(VehiclePose state);
+  double cost_speed(Trajectory trajectory);
 
-	double cost_speed(VehiclePose state);
+  double cost_lane_keep(Trajectory trajectory);
 
-	double cost_lane_keep(VehiclePose state);
+  double cost_on_road(Trajectory trajectory);
 
-	double cost_on_road(VehiclePose state);
+  double cost_acceleration(Trajectory trajectory);
 
-	double cost_acceleration(VehiclePose state);
-
-	double cost_lane_target(VehiclePose state);
+  double cost_lane_target(Trajectory trajectory);
 };
-
 
 #endif /* BEHAVIOR_H_ */

@@ -7,124 +7,202 @@
 
 #include "Behavior.h"
 
-Behavior::Behavior() :
-	trajectory_planner(trajectory_planner),
-	weight_speed(0.2),
-	weight_lane_keep(0.2),
-	weight_acceleration(0.2),
-	weight_lane_target(0.2),
-	weight_on_road(0.2),
-	v_limit(mph_to_mps(SPEED_LIMIT)),
-	v_buffer(mph_to_mps(5)),
-	v_target(v_limit - v_buffer),
-	cost_stop(0.75),
-	a_max(MAX_ACCELERATION)
-{}
+Behavior::Behavior()
+    : trajectory_planner(trajectory_planner),
+      weight_speed(0.2),
+      weight_lane_keep(0.2),
+      weight_acceleration(0.2),
+      weight_lane_target(0.2),
+      weight_on_road(0.2),
+      v_buffer(0.0),
+      v_target(0.0),
+      cost_stop(0.75),
+      a_max(MAX_ACCELERATION) {
+  v_buffer = mph_to_mps(5);
+  v_limit  = SPEED_LIMIT_MPS;
+  v_target = v_limit - v_buffer;
+}
 
 vector<FSM> available_sucessor_states(FSM current_state) {
-	FSM next_state;
-	switch(current_state) {
-	case(FSM::KE):
-		return {FSM::KE, FSM::CL, FSM::CR, FSM::PL, FSM::PR};
-	break;
+  FSM next_state;
+  switch (current_state) {
+    case (FSM::KE):
+      return {FSM::KE, FSM::CL, FSM::CR, FSM::PL, FSM::PR};
+      break;
 
-	case(FSM::CL):
-		return {FSM::CL, FSM::KE};
-	break;
+    case (FSM::CL):
+      return {FSM::CL, FSM::KE};
+      break;
 
-	case(FSM::CR):
-		return {FSM::CR, FSM::KE};
-	break;
+    case (FSM::CR):
+      return {FSM::CR, FSM::KE};
+      break;
 
-	case(FSM::PL):
-		return {FSM::CL, FSM::KE, FSM::PL};
-	break;
+    case (FSM::PL):
+      return {FSM::CL, FSM::KE, FSM::PL};
+      break;
 
-	case(FSM::PR):
-		return {FSM::CR, FSM::KE, FSM::PR};
-	break;
+    case (FSM::PR):
+      return {FSM::CR, FSM::KE, FSM::PR};
+      break;
 
-	default:
-		return {FSM::KE};
-	}
+    default:
+      return {FSM::KE};
+  }
 }
 
-FSM Behavior::transition_function(vector<int>predictions, FSM current_state, VehiclePose pose, vector<vector<VehiclePose>> sorted_traffic) {
-    //only consider states which ca n be reached from current FSM state.
-    vector<FSM> possible_successor_states = available_sucessor_states(current_state);
-    FSM next_state = FSM::KE;
+Behavior::~Behavior() {
+}
 
-    //keep track of the total cost of each state.
-    vector<double> costs;
+/**
+ * State transition function. Only consider states which ca n be reached from current FSM state.
+ * Takes current state, vehicle state, traffic and current trajectory as input to compute
+ * next best state
+ */
+void Behavior::transition_function(SharedData shared, vector<int> predictions,
+                                   VehiclePose ego_car,
+                                   vector<vector<VehiclePose>> traffic,
+                                   double end_path_s, double end_path_d,
+                                   vector<double> previous_path_x,
+                                   vector<double> previous_path_y,
+                                   Trajectory &trajectory) {
 
-    for (auto const& state : possible_successor_states) {
-        //generate resulting trajectory for the target state
-        Trajectory state_trajectory ;//.= trajectory_planner.plan_trajectory(state, pose, sorted_traffic);
+  vector<FSM> possible_successor_states = available_sucessor_states(
+      trajectory.target_state);
+  bool change_state = false;
+  vector<Trajectory> potentials;
+  int chosen = 0;
 
-        //calculate the "cost" of that trajectory.
-        double cost_for_state = cost_function(pose);
-        costs.push_back(cost_for_state);
+  vector<double> costs;                 //Track cost by successor state
+  Trajectory state_trajectory;          //Planned trajectory for given state
+  double min_cost = trajectory.cost;    //Minimum cost found
+  int idx = 0;
+  //Find the minimum cost state.
+  for (auto const& state : possible_successor_states) {
+    //generate resulting trajectory for the target state
+    state_trajectory = trajectory;
+    /**
+    state_trajectory.t = trajectory.t;
+    state_trajectory.s = trajectory.s;
+    state_trajectory.d = trajectory.d;
+    state_trajectory.x = trajectory.x;
+    state_trajectory.y = trajectory.y;
+    state_trajectory.end_v        = trajectory.end_v;
+    state_trajectory.target_lane  = trajectory.target_lane;
+    state_trajectory.target_v     = trajectory.target_v;
+    state_trajectory.target_state = trajectory.target_state;
+    state_trajectory.end_d        = trajectory.end_d;
+    state_trajectory.cost         = trajectory.cost;
+    state_trajectory.target_acc   = trajectory.target_acc;
+    **/
+    trajectory_planner.plan_trajectory(shared, state, ego_car, traffic,
+                                       end_path_s, end_path_d, previous_path_x,
+                                       previous_path_y, state_trajectory);
+
+    //calculate the "cost" of that trajectory.
+    double cost_for_state = cost_function(state_trajectory);
+    state_trajectory.cost = cost_for_state;
+    costs.push_back(cost_for_state);          //Save state costs
+    potentials.push_back(state_trajectory);   //Save state trajectory
+    std::cout << state_label(state) << ": " << cost_for_state << ", ";
+
+    if (cost_for_state < min_cost) {
+      min_cost = cost_for_state;
+      change_state = true;
+      chosen = idx;
     }
-
-    //Find the minimum cost state.
-    double min_cost = 9999999;
-    for (int i=0; i < possible_successor_states.size(); i++) {
-        FSM state = possible_successor_states[i];
-        double cost  = costs[i];
-        if (cost < min_cost) {
-            min_cost = cost;
-            next_state = state;
-        }
-    }
-    return next_state;
+    idx++;
+  }
+  if (change_state) {
+    trajectory = potentials[chosen];
+    trajectory.plan = potentials[chosen].plan;
+    trajectory.s = potentials[chosen].s;
+    trajectory.d = potentials[chosen].d;
+    trajectory.x = potentials[chosen].x;
+    trajectory.y = potentials[chosen].y;
+  } else {
+    /**
+     * Update current trajectory
+     * **/
+    trajectory_planner.plan_trajectory(shared, trajectory.target_state,
+                                       ego_car, traffic, end_path_s,
+                                       end_path_d, previous_path_x,
+                                       previous_path_y, trajectory);
+  }
+  std::cout << " =: " << state_label(trajectory.target_state) << ": " << trajectory.cost << std::endl;
+  //<< std::flush;
 }
 
-double Behavior::cost_function(VehiclePose pose) {
-	double cost = 0;
-	cost = cost_speed(pose) +
-			cost_lane_keep(pose) +
-			cost_acceleration(pose) +
-			cost_on_road(pose) +
-			cost_lane_target(pose);
-	return cost;
+/**
+ * Total cost function
+ */
+double Behavior::cost_function(Trajectory trajectory) {
+  double cost = 0;
+  cost = cost_speed(trajectory) + cost_lane_keep(trajectory)
+      + cost_acceleration(trajectory) + cost_on_road(trajectory)
+      + cost_lane_target(trajectory);
+  return cost;
 }
 
-double Behavior::cost_speed(VehiclePose pose) {
-	double cost = 0.0;
-	if (pose.v < this->v_target) {
-		//Accelerate when under speed limit
-		cost = this->cost_stop * (this->v_target - pose.v) / this->v_target;
-	} else if (pose.v > this->v_limit) {
-		cost = 1.0;
-	} else {
-		// Slow down when approaching speed limit
-		cost = (pose.v - this->v_limit)/this->v_buffer;
-	}
-	return cost * this->weight_speed;
+/**
+ * Cost of maintaining the target speed
+ */
+double Behavior::cost_speed(Trajectory trajectory) {
+  double cost = 0.0;
+  double v = trajectory.target_v;
+  if (v < v_target) {
+    //Accelerate when under speed limit
+    cost = cost_stop * (v_target - v) / v_target;
+  } else if (v > v_limit) {
+    cost = 1.0;
+  } else {
+    // Slow down when approaching speed limit
+    cost = (v - v_limit) / v_buffer;
+  }
+  return cost * weight_speed;
 }
 
-double Behavior::cost_lane_keep(VehiclePose pose) {
-	double cost = 0.0;
-	double center = lane_center(pose.lane);
-	cost = 1/ (1 + exp(-pow(pose.d - center, 2.0)));
-	return cost * this->weight_lane_keep;
+/**
+ * Cost of lane-keeping
+ */
+double Behavior::cost_lane_keep(Trajectory trajectory) {
+  double cost = 0.0;
+  double d = trajectory.end_d;
+  double center = lane_center(trajectory.target_lane);
+  cost = 1 / (1 + exp(-pow(d - center, 2.0)));
+  return cost * this->weight_lane_keep;
 }
 
-double Behavior::cost_acceleration(VehiclePose pose) {
-	double cost = 0.0;
-	return cost * this->weight_acceleration;
+/**
+ * Acceleration costs
+ */
+double Behavior::cost_acceleration(Trajectory trajectory) {
+  double cost = 0.0;
+  double acc = trajectory.target_acc;
+  //Heavily penalize slowing down
+  if (acc < 0)
+    acc = fabs(acc) * 2;
+  return cost * this->weight_acceleration;
 }
 
-double Behavior::cost_on_road(VehiclePose pose) {
-	double cost = 0.0;
-	if (pose.d > ROAD_MAX or pose.d < ROAD_MIN) {
-		cost = 1.0;
-	}
-	return cost * this->weight_on_road;
+/**
+ * Cost of staying on the road
+ */
+double Behavior::cost_on_road(Trajectory trajectory) {
+  double cost = 0.0;
+  double d = trajectory.end_d;
+
+  if (d > ROAD_MAX or d < ROAD_MIN) {
+    cost = 1.0;
+  }
+  return cost * this->weight_on_road;
 }
 
-double Behavior::cost_lane_target(VehiclePose pose) {
-	double cost = 0.0;
-	return cost * this->weight_lane_target;
+/**
+ * Cost of the target lane
+ */
+double Behavior::cost_lane_target(Trajectory trajectory) {
+  double cost = 0.0;
+  return cost * this->weight_lane_target;
 }
 

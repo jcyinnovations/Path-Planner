@@ -86,11 +86,6 @@ public:
 	 */
 	vector<vector<int>> map_grid;
 
-	/**
-	 * Chosen lane based on instructions from the behaviour planner
-	 */
-	int target_lane;
-
 	int track_length;
 
 	/**
@@ -102,13 +97,6 @@ public:
 	 * Current location (grid cell, lane, coordinates)
 	 */
 	VehiclePose location;
-
-	/**
-	 * Splines of the route
-	 */
-	tk::spline s_x;
-	tk::spline s_y;
-	tk::spline s_dir;
 
 	TrajectoryPlanner(
 			vector<double> x,
@@ -143,6 +131,7 @@ public:
 	 * Only regenerate if something changes
 	 */
 	void plan_trajectory(
+	    SharedData shared,
 			FSM state,
 			VehiclePose pose,
 			vector<vector<VehiclePose>> sorted_traffic,

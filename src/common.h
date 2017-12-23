@@ -52,7 +52,7 @@ namespace {
 	int LANE_WIDTH  = 4;
 	double MAX_ACCELERATION = 0.5*10.0;			//meters per second squared
 	double SPEED_LIMIT 		= 50.0; 			//miles per hour
-	double SPEED_LIMIT_MPS 	= mph_to_mps(SPEED_LIMIT);
+	double SPEED_LIMIT_MPS 	= mph_to_mps(SPEED_LIMIT)*0.95;
 	double ROAD_MAX	 = TOTAL_LANES * LANE_WIDTH;
 	double ROAD_MIN	 = 0.0;
 	int SENSOR_RANGE = 10;						// construct grid from 2*N waypoints
@@ -274,6 +274,36 @@ enum class FSM { KE, CL, KB, CR, PR, PL, START };
 //typedef typename vector<vector<int>> MapGrid;
 //typedef typename vector<vector<double>> CostGrid;
 
+inline string state_label(FSM state) {
+  switch (state) {
+    case (FSM::KE):
+      return "KE";
+      break;
+
+    case (FSM::CL):
+      return "CL";
+      break;
+
+    case (FSM::CR):
+      return "CR";
+      break;
+
+    case (FSM::PL):
+      return "PL";
+      break;
+
+    case (FSM::PR):
+      return "PR";
+      break;
+
+    case (FSM::KB):
+        return "KB";
+      break;
+    default:
+      return "START";
+  }
+}
+
 /**
  * Look for an entry in a vector
  */
@@ -304,6 +334,13 @@ inline vector<U> subset(vector<U> source, int start, int length) {
 	return _subset;
 }
 
+struct SharedData {
+  vector<double> map_waypoints_x;
+  tk::spline s_x;
+  tk::spline s_y;
+  tk::spline s_dir;
+};
+
 struct Trajectory {
 	Trajectory() :
 		t(0.0),
@@ -316,7 +353,22 @@ struct Trajectory {
 		target_v(0.0),
 		target_state(FSM::START),
 		end_d(0.0),
+		cost(99999999),
 		target_acc(0.0) {}
+
+	Trajectory(const Trajectory& orig) :
+    t(orig.t),
+    s(orig.s),
+    d(orig.d),
+    x(orig.x),
+    y(orig.y),
+    end_v(orig.end_v),
+    target_lane(orig.target_lane),
+    target_v(orig.target_v),
+    target_state(orig.target_state),
+    end_d(orig.end_d),
+    cost(orig.cost),
+    target_acc(orig.target_acc) {}
 
 	vector<double> s;		//Trajectory s
 	vector<double> d;		//Trajectory d
@@ -326,10 +378,9 @@ struct Trajectory {
 	FSM target_state;		//Requested state
 	int target_lane;		//Based on state
 	double target_v;		//Target speed
-	double t;				//Planner time
+	double t;				    //Planner time
 
-	queue<Coord> plan;			//Plan this
-	vector<Coord> drive_cache;	//Drive this
+	queue<Coord> plan;	//Plan this
 
 	//Current Trajectory parameters
 	VectorXd a 		= VectorXd(6);
@@ -337,7 +388,8 @@ struct Trajectory {
 	VectorXd b 		= VectorXd(6);
 	double end_v;				//Trajectory end speed
 	double end_d;				//Trajectory end lateral position
-	double target_acc;			//Trajectory acceleration
+	double cost;        //Trajectory cost
+	double target_acc;	//Trajectory acceleration
 };
 
 struct VehiclePose {
@@ -383,7 +435,7 @@ struct VehiclePose {
  * Sort traffic
  */
 inline bool compare_traffic(VehiclePose v1, VehiclePose v2) {
-	return (v1.distance < v2.distance) && v1.leading;
+	return (v1.distance < v2.distance);
 }
 
 /**
@@ -420,6 +472,37 @@ inline vector<vector<VehiclePose>> sort_traffic(
   		std::sort(traffic[i].begin(), traffic[i].end(), compare_traffic);
   	}
 	return traffic;
+}
+
+inline vector<vector<VehiclePose>> sort_traffic2(
+    VehiclePose vehicle,
+    vector<vector<double>> sensor_fusion) {
+
+  vector<vector<VehiclePose>> traffic(TOTAL_LANES,vector<VehiclePose>());
+    for (auto sf : sensor_fusion) {
+      VehiclePose p;
+      p.id = sf[0];
+      p.x = sf[1];
+      p.y = sf[2];
+      p.vx = sf[3];
+      p.vy = sf[4];
+      p.yaw= sf[7];
+      p.v  = sqrt(sf[3]*sf[3] + sf[4]*sf[4]);
+      p.s  = sf[5];
+      p.d  = sf[6];
+      p.lane = current_lane(sf[6]);
+      p.distance = sf[5] - vehicle.s; //distance(vehicle.x, vehicle.y, sf[1], sf[2]);
+      p.grid_x = p.lane;
+      p.grid_y = p.distance;
+      //TODO: fix bug in this formula when vehicle is near start
+      double s_distance = sf[5] - vehicle.s;
+      p.leading = s_distance > 0;
+      traffic[p.lane-1].push_back(p);
+    }
+    for (int i=0; i < TOTAL_LANES; i++) {
+      std::sort(traffic[i].begin(), traffic[i].end(), compare_traffic);
+    }
+  return traffic;
 }
 
 #endif /* COMMON_H_ */
