@@ -61,7 +61,7 @@ Behavior::~Behavior() {
  */
 void Behavior::transition_function(SharedData shared, vector<int> predictions,
                                    VehiclePose ego_car,
-                                   vector<vector<VehiclePose>> traffic,
+                                   vector<Limit> limits,
                                    double end_path_s, double end_path_d,
                                    vector<double> previous_path_x,
                                    vector<double> previous_path_y,
@@ -95,7 +95,7 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
     state_trajectory.cost         = trajectory.cost;
     state_trajectory.target_acc   = trajectory.target_acc;
     **/
-    trajectory_planner.plan_trajectory(shared, state, ego_car, traffic,
+    trajectory_planner.plan_trajectory(shared, state, ego_car, limits,
                                        end_path_s, end_path_d, previous_path_x,
                                        previous_path_y, state_trajectory);
 
@@ -125,7 +125,7 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
      * Update current trajectory
      * **/
     trajectory_planner.plan_trajectory(shared, trajectory.target_state,
-                                       ego_car, traffic, end_path_s,
+                                       ego_car, limits, end_path_s,
                                        end_path_d, previous_path_x,
                                        previous_path_y, trajectory);
   }

@@ -134,7 +134,7 @@ public:
 	    SharedData shared,
 			FSM state,
 			VehiclePose pose,
-			vector<vector<VehiclePose>> sorted_traffic,
+			vector<Limit> limits,
 			double end_s,
 			double end_d,
 			vector<double> previous_path_x,

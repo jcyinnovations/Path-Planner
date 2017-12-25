@@ -146,15 +146,16 @@ int main() {
                * Sort traffic before sending to the behavior planner
                */
               //vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
-              vector<vector<VehiclePose>> traffic = sort_traffic2(ego_car, sensor_fusion.get<vector<vector<double>>>());
+              //vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_fusion.get<vector<vector<double>>>());
+              vector<Limit> limits = lane_limits(ego_car, sensor_fusion.get<vector<vector<double>>>());
+              trajectory_planner.plan_trajectory(shared,
+                  FSM::KE, ego_car, limits, end_path_s, end_path_d, previous_path_x, previous_path_y, trajectory);
 
               /**
-              trajectory_planner.plan_trajectory(shared,
-                  FSM::KE, ego_car, traffic, end_path_s, end_path_d, previous_path_x, previous_path_y, trajectory);
-               **/
                vector<int> predictions;
                behavior_planner.transition_function(shared, predictions, ego_car, traffic, end_path_s,
-                                                    end_path_d, previous_path_x, previous_path_y, trajectory);
+               end_path_d, previous_path_x, previous_path_y, trajectory);
+               **/
 
               int i = 0;
               while (i < trajectory.x.size() ) {

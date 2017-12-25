@@ -46,7 +46,7 @@ class Behavior {
   ~Behavior();
 
   void transition_function(SharedData shared, vector<int> predictions,
-                          VehiclePose ego_car, vector<vector<VehiclePose>> traffic,
+                          VehiclePose ego_car, vector<Limit> limits,
                           double end_path_s, double end_path_d,
                           vector<double> previous_path_x,
                           vector<double> previous_path_y,
