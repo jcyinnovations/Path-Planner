@@ -72,7 +72,7 @@ namespace {
   double CELL_SIDE  = LANE_WIDTH;		// size of grid cell (m)
   double INTERVAL   = 0.02;					// update interval
   int HORIZON       = 50;						// number of planning intervals
-  double PLAN_AHEAD = 40;						// plan-ahead distance in meters (roughly 8 car lengths)
+  double PLAN_AHEAD = 50;						// plan-ahead distance in meters (roughly 10 car lengths and distance for comfortable acceleration to speed limit)
   double max_s      = 6945.554;	    // The max s value before wrapping around the track back to 0
   queue<Coord> EMPTY_Q;
 }
@@ -374,7 +374,7 @@ struct Trajectory {
         end_v(0.0),
         target_lane(2),
         target_v(0.0),
-        target_state(FSM::START),
+        target_state(FSM::KE),
         end_d(0.0),
         cost(99999999),
         target_acc(0.0) {

@@ -144,18 +144,29 @@ int main() {
               vector<double> next_y_vals;
               /**
                * Sort traffic before sending to the behavior planner
-               */
-              //vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_data);
-              //vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_fusion.get<vector<vector<double>>>());
-              vector<Limit> limits = lane_limits(ego_car, sensor_fusion.get<vector<vector<double>>>());
-              trajectory_planner.plan_trajectory(shared,
-                  FSM::KE, ego_car, limits, end_path_s, end_path_d, previous_path_x, previous_path_y, trajectory);
+                vector<vector<VehiclePose>> traffic = sort_traffic(ego_car, sensor_fusion.get<vector<vector<double>>>());
+              */
 
               /**
-               vector<int> predictions;
-               behavior_planner.transition_function(shared, predictions, ego_car, traffic, end_path_s,
-               end_path_d, previous_path_x, previous_path_y, trajectory);
+               * lane_limits deduces the speed and distance of the closest traffic within PLAN_AHEAD
+               * distance of the ego car. This is used by the trajectory planner to automatically
+               * decide when to accelerate or brake depending on traffic conditions.
+               */
+              //TODO: Modify traffic by applying predictions of future state
+              vector<Limit> limits = lane_limits(ego_car, sensor_fusion.get<vector<vector<double>>>());
+
+              /**
+               * Just the Trajectory Planner
+              trajectory_planner.plan_trajectory(shared,
+                  FSM::KE, ego_car, limits, end_path_s, end_path_d, previous_path_x, previous_path_y, trajectory);
+              **/
+
+              /**
+               * Trajectory Planner wrapped with the Behaviour Planner
                **/
+               vector<int> predictions;
+               behavior_planner.transition_function(shared, predictions, ego_car, limits, end_path_s,
+               end_path_d, previous_path_x, previous_path_y, trajectory);
 
               int i = 0;
               while (i < trajectory.x.size() ) {

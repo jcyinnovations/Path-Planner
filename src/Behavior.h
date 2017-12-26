@@ -52,7 +52,7 @@ class Behavior {
                           vector<double> previous_path_y,
                           Trajectory &trajectory);
 
-  double cost_function(Trajectory trajectory);
+  double cost_function(const Trajectory& trajectory);
 
   double cost_speed(Trajectory trajectory);
 

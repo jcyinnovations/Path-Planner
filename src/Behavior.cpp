@@ -7,13 +7,16 @@
 
 #include "Behavior.h"
 
+/**
+ * First priority is staying on the road
+ */
 Behavior::Behavior()
     : trajectory_planner(trajectory_planner),
-      weight_speed(0.2),
-      weight_lane_keep(0.2),
-      weight_acceleration(0.2),
-      weight_lane_target(0.2),
-      weight_on_road(0.2),
+      weight_speed(0.15),
+      weight_lane_keep(0.15),
+      weight_acceleration(0.15),
+      weight_lane_target(0.15),
+      weight_on_road(0.4),
       v_buffer(0.0),
       v_target(0.0),
       cost_stop(0.75),
@@ -69,32 +72,20 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
 
   vector<FSM> possible_successor_states = available_sucessor_states(
       trajectory.target_state);
-  bool change_state = false;
   vector<Trajectory> potentials;
   int chosen = 0;
 
-  vector<double> costs;                 //Track cost by successor state
-  Trajectory state_trajectory;          //Planned trajectory for given state
-  double min_cost = trajectory.cost;    //Minimum cost found
+  vector<double> costs;          //Track cost by successor state
+  Trajectory state_trajectory;   //Planned trajectory for given state
+  double min_cost = 999999;      //Minimum cost found
   int idx = 0;
   //Find the minimum cost state.
+  std::cout << std::endl;
   for (auto const& state : possible_successor_states) {
     //generate resulting trajectory for the target state
     state_trajectory = trajectory;
-    /**
-    state_trajectory.t = trajectory.t;
-    state_trajectory.s = trajectory.s;
-    state_trajectory.d = trajectory.d;
-    state_trajectory.x = trajectory.x;
-    state_trajectory.y = trajectory.y;
-    state_trajectory.end_v        = trajectory.end_v;
-    state_trajectory.target_lane  = trajectory.target_lane;
-    state_trajectory.target_v     = trajectory.target_v;
-    state_trajectory.target_state = trajectory.target_state;
-    state_trajectory.end_d        = trajectory.end_d;
-    state_trajectory.cost         = trajectory.cost;
-    state_trajectory.target_acc   = trajectory.target_acc;
-    **/
+
+    std::cout << state_label(state) << ": ";
     trajectory_planner.plan_trajectory(shared, state, ego_car, limits,
                                        end_path_s, end_path_d, previous_path_x,
                                        previous_path_y, state_trajectory);
@@ -104,39 +95,40 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
     state_trajectory.cost = cost_for_state;
     costs.push_back(cost_for_state);          //Save state costs
     potentials.push_back(state_trajectory);   //Save state trajectory
-    std::cout << state_label(state) << ": " << cost_for_state << ", ";
+
+    std::cout << ", " << cost_for_state << std::endl;
 
     if (cost_for_state < min_cost) {
       min_cost = cost_for_state;
-      change_state = true;
       chosen = idx;
     }
     idx++;
   }
-  if (change_state) {
+  if (potentials[chosen].target_state != trajectory.target_state ) {
+    //Change state
     trajectory = potentials[chosen];
+    /**
     trajectory.plan = potentials[chosen].plan;
     trajectory.s = potentials[chosen].s;
     trajectory.d = potentials[chosen].d;
     trajectory.x = potentials[chosen].x;
     trajectory.y = potentials[chosen].y;
+    **/
   } else {
-    /**
-     * Update current trajectory
-     * **/
+    //Reuse updated existing state
     trajectory_planner.plan_trajectory(shared, trajectory.target_state,
                                        ego_car, limits, end_path_s,
                                        end_path_d, previous_path_x,
                                        previous_path_y, trajectory);
   }
-  std::cout << " =: " << state_label(trajectory.target_state) << ": " << trajectory.cost << std::endl;
+  std::cout << std::endl << "\tFINAL: " << state_label(trajectory.target_state) << ": " << trajectory.cost << std::endl;
   //<< std::flush;
 }
 
 /**
  * Total cost function
  */
-double Behavior::cost_function(Trajectory trajectory) {
+double Behavior::cost_function(const Trajectory& trajectory) {
   double cost = 0;
   cost = cost_speed(trajectory) + cost_lane_keep(trajectory)
       + cost_acceleration(trajectory) + cost_on_road(trajectory)
@@ -157,7 +149,7 @@ double Behavior::cost_speed(Trajectory trajectory) {
     cost = 1.0;
   } else {
     // Slow down when approaching speed limit
-    cost = (v - v_limit) / v_buffer;
+    cost = max(v - v_limit, 0.0) / v_buffer;
   }
   return cost * weight_speed;
 }
@@ -170,7 +162,7 @@ double Behavior::cost_lane_keep(Trajectory trajectory) {
   double d = trajectory.end_d;
   double center = lane_center(trajectory.target_lane);
   cost = 1 / (1 + exp(-pow(d - center, 2.0)));
-  return cost * this->weight_lane_keep;
+  return cost * weight_lane_keep;
 }
 
 /**
@@ -180,9 +172,10 @@ double Behavior::cost_acceleration(Trajectory trajectory) {
   double cost = 0.0;
   double acc = trajectory.target_acc;
   //Heavily penalize slowing down
-  if (acc < 0)
-    acc = fabs(acc) * 2;
-  return cost * this->weight_acceleration;
+  if (acc < 0 || acc > MAX_ACCELERATION)
+    cost = 1.0;
+
+  return cost * weight_acceleration;
 }
 
 /**
@@ -195,7 +188,7 @@ double Behavior::cost_on_road(Trajectory trajectory) {
   if (d > ROAD_MAX or d < ROAD_MIN) {
     cost = 1.0;
   }
-  return cost * this->weight_on_road;
+  return cost * weight_on_road;
 }
 
 /**
@@ -203,6 +196,6 @@ double Behavior::cost_on_road(Trajectory trajectory) {
  */
 double Behavior::cost_lane_target(Trajectory trajectory) {
   double cost = 0.0;
-  return cost * this->weight_lane_target;
+  return cost * weight_lane_target;
 }
 

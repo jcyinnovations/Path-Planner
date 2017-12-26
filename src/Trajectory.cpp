@@ -380,6 +380,9 @@ inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory, double 
   double sf_dotdot= 0.0;                //final acceleration
 
 	double s_dotdot = (sf_dot*sf_dot - s_dot*s_dot)/(2*gap);
+	/**
+	 * I can control max acceleration but not deceleration
+	 */
 
 	double t = (sf_dot - s_dot)/s_dotdot;
 	if (t < 0) {
@@ -387,7 +390,7 @@ inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory, double 
 	  t = -1*t;
 	}
 
-	cout << "Gap: " << gap << " Time: " << t << " Acceleration: " << s_dotdot << endl;
+	cout << " Gap: " << gap << " Time: " << t << " Acceleration: " << s_dotdot;
 
 	double sf	= s + s_dot*t + s_dotdot * t*t/2;
 
@@ -549,7 +552,9 @@ void TrajectoryPlanner::plan_trajectory(
 			dt = ego_car.d;
 			xt = ego_car.x;
 			yt = ego_car.y;
-			std::swap(trajectory.plan, EMPTY_Q);    // Empty the queue
+			//std::swap(trajectory.plan, EMPTY_Q);    // Empty the queue4
+			while(!trajectory.plan.empty())
+			  trajectory.plan.pop();
 			rem = 0;
 		}
     trajectory.target_state = state;    //New state requested
