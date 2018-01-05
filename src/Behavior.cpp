@@ -82,7 +82,7 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
    * Cache the end 'd' position
    */
   double end_d = trajectory.end_d;
-
+  bool pause_planning = trajectory.in_progress;
   /**
    * Update the current state to see if its cost-effective
    */
@@ -94,6 +94,12 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
   trajectory.cost = cost_function(trajectory);
   min_cost = trajectory.cost;
   std::cout << ", Cost: " << min_cost << std::endl;
+
+  /**
+   * Halt planning until the lane-change is complete
+   */
+  if (pause_planning)
+    return;
 
   //Find the minimum cost state.
   for (auto const& state : possible_successor_states) {

@@ -378,7 +378,8 @@ struct Trajectory {
         target_state(FSM::KE),
         end_d(0.0),
         cost(99999999),
-        target_acc(0.0) {
+        target_acc(0.0),
+        in_progress(false) {
   }
 
   /**
@@ -406,8 +407,8 @@ struct Trajectory {
   int target_lane;		//Based on state
   double target_v;		//Target speed
   double t;				    //Planner time
-
-  queue<Coord> plan;	//Plan this
+  bool in_progress;   //Signal lane-change in progress to Behavior Planner
+  queue<Coord> plan;	//Plan of upcoming trajectory points
 
   //Current Trajectory parameters
   VectorXd a    = VectorXd(6);

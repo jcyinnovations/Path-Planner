@@ -325,11 +325,13 @@ inline void apply_requested_state (
 	}
 	else if (state == FSM::CL) {
 		//Change to left lane if possible
-	  new_trajectory.target_lane = ego_car.lane - 1;
+	  if (!new_trajectory.in_progress)
+	    new_trajectory.target_lane = ego_car.lane - 1;
 	}
 	else if (state == FSM::CR) {
 		//Change to right lane if possible
-	  new_trajectory.target_lane = ego_car.lane + 1;
+    if (!new_trajectory.in_progress)
+      new_trajectory.target_lane = ego_car.lane + 1;
 	}
 	else if (state == FSM::PL) {
 		/**
@@ -495,10 +497,18 @@ void TrajectoryPlanner::plan_trajectory(
 	int    rem  = previous_path_x.size();//Number of trajectory points remaining on the car's queue
   double gap  = PLAN_AHEAD;            //Safe gap between ego car and car ahead
   int horizon = 0;                     //Actual length of plan in trajectory points (used for generation phase)
-	/**
+
+  /**
 	 * Assess how to obey the state request and change df and sf_dot accordingly
 	 */
 	apply_requested_state(state, ego_car, limits, trajectory, gap);
+
+  /**
+   * Signal a lane-change is in progress.
+   * Forces Behavior Planner to wait before requesting a state change
+   */
+  trajectory.in_progress = (state == FSM::CL || state == FSM::CR) &&
+      (!in_range(lane_center(trajectory.target_lane), end_d, 0.05));
 
   double st = 0.0;
 	double dt = 0.0;
