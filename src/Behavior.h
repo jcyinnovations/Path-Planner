@@ -20,8 +20,10 @@ using namespace std;
 /**
  * Finite State Machine behavior planner.
  * Decides next best move based on inputs from localization and prediction
- * Uses cost functions to prioritize the possible actions
+ * Uses cost functions to prioritize the possible actions.
  *
+ * If a lane-change state is still in progress, avoids making an additional state
+ * change until the current one is completed.
  */
 class Behavior {
 

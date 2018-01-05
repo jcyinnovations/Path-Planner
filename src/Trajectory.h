@@ -66,6 +66,16 @@ class TrajectoryPlanner {
 
 public:
 
+  /**
+   * Current state adopted by the vehicle
+   */
+  //FSM current_state;
+
+  /**
+   * Used to pause the behavior planner to avoid mid-change state changes.
+   * E.g complete a lane-change before starting a new change
+   */
+
 	/**
 	 * Map section near the car (closest N waypoints)
 	 */

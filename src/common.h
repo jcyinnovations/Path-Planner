@@ -71,9 +71,10 @@ namespace {
   int SENSOR_RANGE  = 10;						// construct grid from 2*N waypoints
   double CELL_SIDE  = LANE_WIDTH;		// size of grid cell (m)
   double INTERVAL   = 0.02;					// update interval
-  int HORIZON       = 50;						// number of planning intervals
+  int HORIZON       = 40;						// number of planning intervals
   double PLAN_AHEAD = 50;						// plan-ahead distance in meters (roughly 10 car lengths and distance for comfortable acceleration to speed limit)
   double max_s      = 6945.554;	    // The max s value before wrapping around the track back to 0
+  int OVERLAP       = 5;            // Number of points overlap between old and new trajectories
   queue<Coord> EMPTY_Q;
 }
 
@@ -380,6 +381,7 @@ struct Trajectory {
         target_acc(0.0) {
   }
 
+  /**
   Trajectory(const Trajectory& orig)
       : t(orig.t),
         s(orig.s),
@@ -394,7 +396,7 @@ struct Trajectory {
         cost(orig.cost),
         target_acc(orig.target_acc) {
   }
-
+   **/
   vector<double> s;		//Trajectory s
   vector<double> d;		//Trajectory d
   vector<double> x;		//Trajectory x
@@ -408,9 +410,9 @@ struct Trajectory {
   queue<Coord> plan;	//Plan this
 
   //Current Trajectory parameters
-  VectorXd a = VectorXd(6);
-  VectorXd a_s = VectorXd(6);
-  VectorXd b = VectorXd(6);
+  VectorXd a    = VectorXd(6);
+  VectorXd a_s  = VectorXd(6);
+  VectorXd b    = VectorXd(6);
   double end_v;				//Trajectory end speed
   double end_d;				//Trajectory end lateral position
   double cost;        //Trajectory cost

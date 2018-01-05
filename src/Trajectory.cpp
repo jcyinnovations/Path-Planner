@@ -338,7 +338,7 @@ inline void apply_requested_state (
 		 */
 	  new_trajectory.target_lane = ego_car.lane;
 	}
-  new_trajectory.end_d = lane_center(new_trajectory.target_lane);
+  //new_trajectory.end_d = lane_center(new_trajectory.target_lane);
 
 	/**
 	 * Adjust speed for target lane
@@ -347,7 +347,7 @@ inline void apply_requested_state (
 	    new_trajectory.target_lane <= TOTAL_LANES) {
 
 	  double target_lane_speed = limits[new_trajectory.target_lane-1].v;
-    double delta_v = target_lane_speed/ego_car.v;
+    double delta_v = target_lane_speed/ego_car.v;   //Speed differential
     if (target_lane_speed < SPEED_LIMIT_MPS) {
       //Under speed limit, set this speed as the lane limit
       gap = limits[new_trajectory.target_lane-1].gap;
@@ -367,25 +367,31 @@ inline void apply_requested_state (
 
 /**
  * Generate parameters for s quintic
+ * gap - target distance
  */
-inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory, double gap) {
+inline void solve_s_quintic(VehiclePose ego_car, double gap, Trajectory& trajectory, int& horizon) {
 	/**
 	 * Initial State 's'
 	 */
 	MatrixXd T(3,3);
 	MatrixXd T_inverse(3,3);
-	double s 		= ego_car.s;
-	double s_dot= ego_car.v;
-  double sf_dot   = trajectory.target_v;//final speed
-  double sf_dotdot= 0.0;                //final acceleration
+	double s 		 = ego_car.s;
+	double s_dot = ego_car.v;
+  double sf_dot    = trajectory.target_v;//final speed
+  double sf_dotdot = 0.0;                //final acceleration
 
-	double s_dotdot = (sf_dot*sf_dot - s_dot*s_dot)/(2*gap);
+	double s_dotdot  = (sf_dot*sf_dot - s_dot*s_dot)/(2*gap);
 	/**
-	 * I can control max acceleration but not deceleration
+	 * Can control max acceleration but not deceleration
 	 */
-
-	double t = (sf_dot - s_dot)/s_dotdot;
-	if (t < 0) {
+	//default to time to cover gap at constant speed
+	double t = gap/s_dot;
+	//Unless speed is not constant over the gap
+	if (s_dotdot != 0) {
+	  t = (sf_dot - s_dot)/s_dotdot;
+	}
+	//Invert time when slowing down (negative acceleration)
+  if (t < 0) {
 	  s_dotdot = -1*s_dotdot;
 	  t = -1*t;
 	}
@@ -420,28 +426,28 @@ inline void solve_s_quintic(VehiclePose ego_car, Trajectory& trajectory, double 
 	}
 	trajectory.a_s << trajectory.a[1], 	2*trajectory.a[2], 	3*trajectory.a[3],
 					  4*trajectory.a[4], 5*trajectory.a[5], 0;
-	trajectory.t = t;
+	horizon = fabs(t/INTERVAL);
 }
 
 
 void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
-	double t 		= 3.0;
+	double t 		= 3.0;    //time to complete a lane-change
 
 	MatrixXd T(3,3);
 	MatrixXd T_inverse(3,3);
 	/**
 	 * Initial State 'd'
 	 */
-	double d 		= ego_car.d;
-	double d_dot 	= 0.0;
+	double d 		    = ego_car.d;
+	double d_dot 	  = 0.0;
 	double d_dotdot	= 0.05;
 
 	/**
 	 * Final State 'd'
 	 */
-	double df		= lane_center(trajectory.target_lane);	//center of lane chosen below
-	double df_dotdot= 0.0; 									//final acceleration (any adjustment done in time horizon 't')
-	double df_dot	= 0.0; 									//Adjustment over so no lateral movement necessary
+	double df		      = lane_center(trajectory.target_lane);	//center of lane chosen below
+	double df_dotdot  = 0.0; 									//final acceleration (any adjustment done in time horizon 't')
+	double df_dot	    = 0.0; 									//Adjustment over so no lateral movement necessary
 
 	double distance = df - d;
 	d_dotdot = 2 * distance / (t*t);
@@ -449,7 +455,7 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	/**
 	 * Setup coefficients
 	 */
-	if ( !in_range(d, df, 0.01) ) {
+	//if ( !in_range(d, df, 0.01) ) {
 		T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
 			3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
 			6*t, 			12*pow(t, 2), 	20*pow(t, 3);
@@ -461,10 +467,8 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 				df_dotdot - d_dotdot;
 		VectorXd B = T_inverse * Df;
 		trajectory.b << d, d_dot, d_dotdot/2, B[0], B[1], B[2];
-	} else
-		trajectory.b << df, 0, 0, 0, 0, 0;
-
-	trajectory.end_d = df;
+	//} else
+	//	trajectory.b << d, 0, 0, 0, 0, 0;
 }
 
 /**
@@ -488,111 +492,89 @@ void TrajectoryPlanner::plan_trajectory(
 		vector<double> previous_path_y,
 		Trajectory &trajectory) {
 
-	int rem = previous_path_x.size();
-	double end_x;
-	double end_y;
-	double gap = PLAN_AHEAD; //Safe gap between ego car and car ahead
-	if (rem > 0) {
-		end_x = previous_path_x.back();
-		end_y = previous_path_y.back();
-	}
+	int    rem  = previous_path_x.size();//Number of trajectory points remaining on the car's queue
+  double gap  = PLAN_AHEAD;            //Safe gap between ego car and car ahead
+  int horizon = 0;                     //Actual length of plan in trajectory points (used for generation phase)
 	/**
 	 * Assess how to obey the state request and change df and sf_dot accordingly
 	 */
 	apply_requested_state(state, ego_car, limits, trajectory, gap);
-
-  //cout << "Lane Speeds: " << lane_speed << "\n";
 
   double st = 0.0;
 	double dt = 0.0;
 	double xt = 0.0;
 	double yt = 0.0;
 
-	trajectory.x.clear();
-	trajectory.y.clear();
+  trajectory.s.clear();
+  trajectory.d.clear();
+  trajectory.x.clear();
+  trajectory.y.clear();
 
 	/**
 	 * Plan a new trajectory when requested state or speed have changed,
 	 * or the remainder of the old trajectory is less than the HORIZON limit (1 second or 50 intervals)
 	 *
 	 * NOTE: State machine of the Behaviour Planner controls the following states: KE, CL, CR, PL, PR
-	 * 		 The Trajectory Planner controls the states: START and KB. START is the initial state of the
-	 * 		 vehicle. KB is used when the vehicle needs to slow down.
+	 *  The Trajectory Planner controls the KB states.
+	 * 	KB is used when the vehicle needs to slow down.
 	 */
+
 	if ( trajectory.target_state != state ||
-			trajectory.plan.size() < HORIZON ) {
+			(trajectory.plan.size() <= HORIZON-rem) ) {
 
-	  /**
-	   * Ignore the KB state, its just used to trigger this update on a target speed change
-	   */
-	  if (state == FSM::KB) {
-	    state = FSM::KE;
+	  if (rem > 0) {
+	    //Reuse drive cache if available
+      ego_car.s = end_s;
+      ego_car.d = end_d;
+      ego_car.d = trajectory.end_d;
 	  }
-
-		if (trajectory.target_state == state) {
-			//Same state so reuse old trajectory points, starting from end
-			if (!trajectory.plan.empty()) {
+    ego_car.v = trajectory.end_v;
+		if (trajectory.target_state == state && !trajectory.plan.empty()) {
+		  /**
+		   * Just updating trajectory for existing state;
+		   * starting from end of the current plan or
+		   * Vehicle location if plan is empty
+		   */
 	      Coord c = trajectory.plan.back();
         ego_car.s = c.s;
         ego_car.d = c.d;
-        ego_car.v = c.v;
-			}
-			st = end_s;
-			dt = end_d;
-			xt = end_x;
-			yt = end_y;
-		} else {
-			/**
-			 * Use the new trajectory immediately.
-			 * Start from current car location and speed
-			 * Clear the trajectory plan
-			 * Reset remainder to 0
-			 */
-			st = ego_car.s;
-			dt = ego_car.d;
-			xt = ego_car.x;
-			yt = ego_car.y;
-			//std::swap(trajectory.plan, EMPTY_Q);    // Empty the queue4
-			while(!trajectory.plan.empty())
-			  trajectory.plan.pop();
-			rem = 0;
 		}
+
+    //Ignore the KB state, its just used to trigger this update on a target speed change
+    if (state == FSM::KB) state = FSM::KE;
     trajectory.target_state = state;    //New state requested
 
-		//Plan new trajectory
-		solve_s_quintic(ego_car, trajectory, gap);
+    //Plan new trajectory
+		solve_s_quintic(ego_car, gap, trajectory, horizon);
 		solve_d_quintic(ego_car, trajectory);
 
 		/**
-		 * Generate the trajectory and endpoints
+		 * Generate and cache the trajectory and endpoints
 		 */
-		trajectory.s.clear();
-		trajectory.d.clear();
-		trajectory.x.clear();
-		trajectory.y.clear();
-
 		VectorXd DT(6);
 		double ti = 0.0;
 		dt = 0.0;
-
-		int horizon = fabs(trajectory.t/INTERVAL);
+		st = 0.0;
 		for (int i = 1; i <= horizon; i++) {
 			Coord c;
-			ti = ti + INTERVAL;
+      ti = ti + INTERVAL;
 			DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
 
 			st = trajectory.a.transpose() * DT;
-			trajectory.end_v = trajectory.a_s.transpose() * DT;
-			c.v = trajectory.end_v;
+			c.v = trajectory.a_s.transpose() * DT;
 			trajectory.s.push_back(st);
 			c.s = st;
 
+			/**
+			 * Stop adjusting d when close to center of lane
+       */
 			if ( in_range(dt, lane_center(trajectory.target_lane), 0.01) ) {
 				trajectory.b << lane_center(trajectory.target_lane), 0, 0, 0, 0, 0;
 			} else {
 				dt = trajectory.b.transpose() * DT;
 			}
 
+			//dt = trajectory.b.transpose() * DT;
 			trajectory.d.push_back(dt);
 			c.d = dt;
 			trajectory.t = ti;
@@ -606,28 +588,33 @@ void TrajectoryPlanner::plan_trajectory(
 			c.x = xy[0];
 			c.y = xy[1];
 			trajectory.plan.push(c);
-		}
-	}
+		} //END PLAN GENERATION
+	}//END OF PLANNING
 
 	/**
-	 * Reuse previous path (if needed)
+	 * Reuse previous path if available
 	 */
 	if (rem > 0) {
 		for (int i=0; i<rem; i++) {
 			trajectory.x.push_back(previous_path_x[i]);
 			trajectory.y.push_back(previous_path_y[i]);
 		}
-		end_x = previous_path_x.back();
-		end_y = previous_path_y.back();
 	}
+
 	/**
-	 * Append new plan
+	 * Append the new plan.
 	 */
 	for (int i = 0; i < HORIZON-rem; i++) {
     Coord c = trajectory.plan.front();
     trajectory.plan.pop();
     trajectory.x.push_back(c.x);
     trajectory.y.push_back(c.y);
+    /**
+     * Record the speed at the end of this section for
+     * recalculation on a state change later
+     */
+    trajectory.end_v = c.v;
+    trajectory.end_d = c.d;
     if (trajectory.plan.empty()) {
       break;
     }
