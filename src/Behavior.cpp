@@ -12,16 +12,14 @@
  */
 Behavior::Behavior()
     : trajectory_planner(trajectory_planner),
-      weight_speed(0.25),
+      weight_speed(0.15),
       weight_lane_keep(0.15),
-      weight_acceleration(0.10),
-      weight_lane_target(0.10),
-      weight_on_road(0.4),
-      v_buffer(0.0),
-      v_target(0.0),
+      weight_acceleration(0.30),
+      weight_lane_target(0.05),
+      weight_on_road(0.35),
       cost_stop(0.75),
       a_max(MAX_ACCELERATION) {
-  v_buffer = mph_to_mps(5);
+  v_buffer = mph_to_mps(10);
   v_limit  = SPEED_LIMIT_MPS;
   v_target = v_limit - v_buffer;
 }
@@ -131,7 +129,7 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
     }
   }
 
-  std::cout << std::endl << "\tDecision: " << state_label(trajectory.target_state) << ": " << trajectory.cost << std::endl;
+  std::cout << " Decision: " << state_label(trajectory.target_state) << ": " << trajectory.cost << std::endl;
   //<< std::flush;
 }
 
@@ -182,8 +180,10 @@ double Behavior::cost_acceleration(Trajectory trajectory) {
   double cost = 0.0;
   double acc = trajectory.target_acc;
   //Heavily penalize slowing down
-  if (acc < 0 || acc > MAX_ACCELERATION)
+  if (acc >= MAX_ACCELERATION)
     cost = 1.0;
+  else if (acc < 0)
+    cost = 0.75;
 
   return cost * weight_acceleration;
 }
@@ -207,9 +207,9 @@ double Behavior::cost_on_road(Trajectory trajectory) {
 double Behavior::cost_lane_target(Trajectory trajectory) {
   double cost = 0.0;
   if (trajectory.target_lane == 2)
-    cost = 0.2;
+    cost = 0.75;
   else
-    cost = 0.4;
+    cost = 1.0;
   return cost * weight_lane_target;
 }
 

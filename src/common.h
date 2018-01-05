@@ -65,7 +65,7 @@ namespace {
   int LANE_WIDTH    = 4;
   double MAX_ACCELERATION = 0.5 * 10.0;	//meters per second squared
   double SPEED_LIMIT      = 50.0; 			      //miles per hour
-  double SPEED_LIMIT_MPS  = mph_to_mps(SPEED_LIMIT) * 0.95;
+  double SPEED_LIMIT_MPS  = mph_to_mps(SPEED_LIMIT) * 0.90;
   double ROAD_MAX   = TOTAL_LANES * LANE_WIDTH;
   double ROAD_MIN   = 0.0;
   int SENSOR_RANGE  = 10;						// construct grid from 2*N waypoints
@@ -465,6 +465,13 @@ struct VehiclePose {
  */
 inline bool compare_traffic(VehiclePose v1, VehiclePose v2) {
   return v1.leading && (v1.distance > v2.distance);
+}
+
+/**
+ * Update traffic position to future state
+ */
+inline void predict_traffic(vector<vector<double>>& sensor_fusion) {
+
 }
 
 /**

@@ -138,7 +138,7 @@ int main() {
               int car_waypoint = ClosestWaypoint(car_x, car_y, map_waypoints_x, map_waypoints_y);
               ego_car.waypoint = car_waypoint;
               ego_car.lane = current_lane(car_d);
-
+              cout << "\t\t\tWAYPOINT: " << car_waypoint << endl;
               json msgJson;
               vector<double> next_x_vals;
               vector<double> next_y_vals;

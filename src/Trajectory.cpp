@@ -568,7 +568,7 @@ void TrajectoryPlanner::plan_trajectory(
 		for (int i = 1; i <= horizon; i++) {
 			Coord c;
       ti = ti + INTERVAL;
-			DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
+      DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
 
 			st = trajectory.a.transpose() * DT;
 			c.v = trajectory.a_s.transpose() * DT;
