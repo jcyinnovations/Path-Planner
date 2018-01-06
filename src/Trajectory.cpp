@@ -350,17 +350,38 @@ inline void apply_requested_state (
 
 	  double target_lane_speed = limits[new_trajectory.target_lane-1].v;
     double delta_v = target_lane_speed/ego_car.v;   //Speed differential
-    if (target_lane_speed < SPEED_LIMIT_MPS) {
-      //Under speed limit, set this speed as the lane limit
-      gap = limits[new_trajectory.target_lane-1].gap;
-      if (delta_v < 0.90)
-        new_trajectory.target_v = target_lane_speed;
-      else
-        new_trajectory.target_v = 0.90*target_lane_speed;
-      //new_trajectory.target_state = FSM::KB;
-    }
+    gap = limits[new_trajectory.target_lane-1].gap;
+    /**
+     * Accommodate close vehicles (within PLAN_AHEAD distance)
+     * by matching their speed in the gap distance
+     */
+    if (fabs(gap) < PLAN_AHEAD) {
+      //If the car is behind or next to ego car don't change lanes
+      if (gap < 0) {
+        if (state != FSM::KE) {
+          //Slow down to half the target lane speed
+          new_trajectory.target_v = 0.50*target_lane_speed;
+          gap = fabs(gap);
+        }
+      } else {
+        /**
+         * Match the speed of the lane in the PLAN_AHEAD or gap distance;
+         * Whichever is less
+         */
+        if (gap > PLAN_AHEAD)
+          gap = PLAN_AHEAD;
+        if (target_lane_speed < SPEED_LIMIT_MPS) {
+          //Under speed limit, set this speed as the lane limit
+          if (delta_v < 0.90)
+            new_trajectory.target_v = target_lane_speed;
+          else
+            new_trajectory.target_v = 0.90*target_lane_speed;
+        }
+      }
+    } else
+      gap = PLAN_AHEAD; //ignore larger gaps
 	} else {
-	  //Over the speed limit, adjust car speed if it is below speed limit
+	  //Adjust car speed if it is below speed limit
 	  if (ego_car.v < SPEED_LIMIT_MPS)
 	    new_trajectory.target_v = SPEED_LIMIT_MPS;
 	}

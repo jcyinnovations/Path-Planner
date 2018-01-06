@@ -69,10 +69,8 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
                                    Trajectory &trajectory) {
 
   vector<FSM> possible_successor_states = available_sucessor_states(trajectory.target_state);
-  vector<Trajectory> potentials;
   int chosen = 0;
 
-  vector<double> costs;          //Track cost by successor state
   double min_cost = 999999;      //Minimum cost found
   std::cout << std::endl;
   int current_target_lane = trajectory.target_lane;
@@ -118,8 +116,6 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
     //calculate the "cost" of that trajectory.
     double cost_for_state = cost_function(state_trajectory);
     state_trajectory.cost = cost_for_state;
-    costs.push_back(cost_for_state);          //Save state costs
-    potentials.push_back(state_trajectory);   //Save state trajectory
 
     std::cout << ", Cost: " << cost_for_state << std::endl;
 
@@ -147,7 +143,7 @@ double Behavior::cost_function(const Trajectory& trajectory) {
 /**
  * Cost of maintaining the target speed
  */
-double Behavior::cost_speed(Trajectory trajectory) {
+double Behavior::cost_speed(const Trajectory& trajectory) {
   double cost = 0.0;
   double v = trajectory.target_v;
   if (v < v_target) {
@@ -165,7 +161,7 @@ double Behavior::cost_speed(Trajectory trajectory) {
 /**
  * Cost of lane-keeping
  */
-double Behavior::cost_lane_keep(Trajectory trajectory) {
+double Behavior::cost_lane_keep(const Trajectory& trajectory) {
   double cost = 0.0;
   double d = trajectory.end_d;
   double center = lane_center(trajectory.target_lane);
@@ -176,7 +172,7 @@ double Behavior::cost_lane_keep(Trajectory trajectory) {
 /**
  * Acceleration costs
  */
-double Behavior::cost_acceleration(Trajectory trajectory) {
+double Behavior::cost_acceleration(const Trajectory& trajectory) {
   double cost = 0.0;
   double acc = trajectory.target_acc;
   //Heavily penalize slowing down
@@ -191,7 +187,7 @@ double Behavior::cost_acceleration(Trajectory trajectory) {
 /**
  * Cost of staying on the road
  */
-double Behavior::cost_on_road(Trajectory trajectory) {
+double Behavior::cost_on_road(const Trajectory& trajectory) {
   double cost = 0.0;
   double d = lane_center(trajectory.target_lane);
 
@@ -204,7 +200,7 @@ double Behavior::cost_on_road(Trajectory trajectory) {
 /**
  * Cost of the target lane. Preference for center lane
  */
-double Behavior::cost_lane_target(Trajectory trajectory) {
+double Behavior::cost_lane_target(const Trajectory& trajectory) {
   double cost = 0.0;
   if (trajectory.target_lane == 2)
     cost = 0.75;

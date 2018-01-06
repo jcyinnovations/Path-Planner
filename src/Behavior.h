@@ -56,15 +56,15 @@ class Behavior {
 
   double cost_function(const Trajectory& trajectory);
 
-  double cost_speed(Trajectory trajectory);
+  double cost_speed(const Trajectory& trajectory);
 
-  double cost_lane_keep(Trajectory trajectory);
+  double cost_lane_keep(const Trajectory& trajectory);
 
-  double cost_on_road(Trajectory trajectory);
+  double cost_on_road(const Trajectory& trajectory);
 
-  double cost_acceleration(Trajectory trajectory);
+  double cost_acceleration(const Trajectory& trajectory);
 
-  double cost_lane_target(Trajectory trajectory);
+  double cost_lane_target(const Trajectory& trajectory);
 };
 
 #endif /* BEHAVIOR_H_ */

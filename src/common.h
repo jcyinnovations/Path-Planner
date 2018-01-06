@@ -468,10 +468,17 @@ inline bool compare_traffic(VehiclePose v1, VehiclePose v2) {
 }
 
 /**
- * Update traffic position to future state
+ * Update traffic position to future state using model-based prediction
+ * Future time: INTERVAL * HORIZON (set to 1 second)
  */
-inline void predict_traffic(vector<vector<double>>& sensor_fusion) {
-
+inline void predict_traffic(VehiclePose vehicle,
+                            double future,
+                            vector<vector<double>>& sensor_fusion) {
+  for (int i=0; i < sensor_fusion.size(); i++) {
+    double v = sqrt(sensor_fusion[i][3]*sensor_fusion[i][3] + sensor_fusion[i][4]*sensor_fusion[i][4]);
+    //v = v - vehicle.v;  //use relative speed to calculate change in location
+    sensor_fusion[i][5] = sensor_fusion[i][5] + future*v;  //s
+  }
 }
 
 /**
@@ -479,6 +486,13 @@ inline void predict_traffic(vector<vector<double>>& sensor_fusion) {
  */
 inline vector<Limit> lane_limits(
     VehiclePose vehicle, vector<vector<double>> sensor_fusion) {
+
+  /**
+   * Where will traffic be in the future
+   */
+  double future = INTERVAL * HORIZON;
+  predict_traffic(vehicle, future, sensor_fusion);
+  double ego_s = vehicle.s + vehicle.v*future;
 
   Limit l;
   vector<Limit> limits(3, l);
@@ -488,13 +502,11 @@ inline vector<Limit> lane_limits(
     int lane = current_lane(sf[6]);
     if (lane > 0 && lane <= TOTAL_LANES) {
       int idx = lane - 1;
-      double gap = sf[5] - vehicle.s;
-      //Vehicle is in front and within planning distance
-      if (sf[5] > vehicle.s && gap <= limits[idx].gap) {
-        //vehicle is slower than current lane speed limit
-        if (v < limits[idx].v) {
-          limits[idx].v = v;   //reduce the lane speed limit
-        }
+      double gap = sf[5] - ego_s;
+      //Get the closest vehicle
+      if ( fabs(gap) < limits[idx].gap) {
+        limits[idx].gap = gap;
+        limits[idx].v = v;
       }
     }
   }
