@@ -82,6 +82,9 @@ int main() {
   shared.s_x.set_points(map_waypoints_s, map_waypoints_x);
   shared.s_y.set_points(map_waypoints_s, map_waypoints_y);
   shared.s_dir.set_points(map_waypoints_s, map_waypoints_dir);
+  shared.map_waypoints_s = map_waypoints_s;
+  shared.map_waypoints_x = map_waypoints_x;
+  shared.map_waypoints_y = map_waypoints_y;
 
   h.onMessage(
       [&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &shared](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,

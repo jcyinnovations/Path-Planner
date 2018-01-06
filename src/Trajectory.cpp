@@ -308,7 +308,7 @@ inline void apply_requested_state (
 
   new_trajectory.target_v 	= SPEED_LIMIT_MPS; //Always unless conditions dictate otherwise
 	gap = PLAN_AHEAD;
-
+	cout << limits << endl;
 	/**
 	 * Update final state position. Conditions for update:
 	 * 1. Time horizon is length of the trajectory (50 points or 1 second)
@@ -348,38 +348,34 @@ inline void apply_requested_state (
 	if (new_trajectory.target_lane > 0 &&
 	    new_trajectory.target_lane <= TOTAL_LANES) {
 
-	  double target_lane_speed = limits[new_trajectory.target_lane-1].v;
-    double delta_v = target_lane_speed/ego_car.v;   //Speed differential
+	  //Target lane speed set to 95% of the car ahead to ensure we keep back
+	  double target_lane_speed = limits[new_trajectory.target_lane-1].v * 0.95;
     gap = limits[new_trajectory.target_lane-1].gap;
+    double clearance = limits[new_trajectory.target_lane-1].clearance;
     /**
      * Accommodate close vehicles (within PLAN_AHEAD distance)
      * by matching their speed in the gap distance
      */
-    if (fabs(gap) < PLAN_AHEAD) {
-      //If the car is behind or next to ego car don't change lanes
-      if (gap < 0) {
-        if (state != FSM::KE) {
-          //Slow down to half the target lane speed
-          new_trajectory.target_v = 0.50*target_lane_speed;
-          gap = fabs(gap);
-        }
-      } else {
-        /**
-         * Match the speed of the lane in the PLAN_AHEAD or gap distance;
-         * Whichever is less
-         */
-        if (gap > PLAN_AHEAD)
-          gap = PLAN_AHEAD;
-        if (target_lane_speed < SPEED_LIMIT_MPS) {
-          //Under speed limit, set this speed as the lane limit
-          if (delta_v < 0.90)
-            new_trajectory.target_v = target_lane_speed;
-          else
-            new_trajectory.target_v = 0.90*target_lane_speed;
-        }
+    if (gap < PLAN_AHEAD) {
+      /**
+       * Match the speed of the lane in the PLAN_AHEAD or gap distance;
+       * Whichever is less
+       */
+      if (target_lane_speed < SPEED_LIMIT_MPS) {
+        //Under speed limit, set this speed as the lane limit
+        new_trajectory.target_v = target_lane_speed;
       }
-    } else
-      gap = PLAN_AHEAD; //ignore larger gaps
+    } else {
+      //ignore larger gaps
+      gap = PLAN_AHEAD;
+    }
+    /**
+     * If the car is behind or next to ego car drastically reduce speed to
+     * hinder the lane change
+     */
+    if (clearance <= CLEARANCE && state != FSM::KE)
+      new_trajectory.target_v = 0.50*target_lane_speed;
+
 	} else {
 	  //Adjust car speed if it is below speed limit
 	  if (ego_car.v < SPEED_LIMIT_MPS)
@@ -419,7 +415,7 @@ inline void solve_s_quintic(VehiclePose ego_car, double gap, Trajectory& traject
 	  t = -1*t;
 	}
 
-	cout << " Gap: " << gap << " Time: " << t << " Acceleration: " << s_dotdot;
+	cout << " Gap: " << gap << " Time: " << t << " Acceleration: " << s_dotdot << " Target Speed: " << trajectory.target_v;
 
 	double sf	= s + s_dot*t + s_dotdot * t*t/2;
 
@@ -609,6 +605,10 @@ void TrajectoryPlanner::plan_trajectory(
 			trajectory.d.push_back(dt);
 			c.d = dt;
 			trajectory.t = ti;
+			/**
+			 * Uses a Spline to smooth over the Frenet to
+			 * Cartesian conversion for the waypoints
+			 */
 			vector<double> xy = getXY2(
 					trajectory.s.back(),
 					trajectory.d.back(),

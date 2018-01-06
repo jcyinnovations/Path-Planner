@@ -12,15 +12,15 @@
  */
 Behavior::Behavior()
     : trajectory_planner(trajectory_planner),
-      weight_speed(0.15),
-      weight_lane_keep(0.15),
-      weight_acceleration(0.30),
-      weight_lane_target(0.05),
+      weight_speed(0.20),
+      weight_lane_keep(0.0),
+      weight_acceleration(0.25),
+      weight_lane_target(0.20),
       weight_on_road(0.35),
       cost_stop(0.75),
       a_max(MAX_ACCELERATION) {
-  v_buffer = mph_to_mps(10);
-  v_limit  = SPEED_LIMIT_MPS;
+  v_buffer = mph_to_mps(5);
+  v_limit  = mph_to_mps(SPEED_LIMIT);
   v_target = v_limit - v_buffer;
 }
 
@@ -134,9 +134,15 @@ void Behavior::transition_function(SharedData shared, vector<int> predictions,
  */
 double Behavior::cost_function(const Trajectory& trajectory) {
   double cost = 0;
-  cost = cost_speed(trajectory) + cost_lane_keep(trajectory)
-      + cost_acceleration(trajectory) + cost_on_road(trajectory)
-      + cost_lane_target(trajectory);
+  double speed       = cost_speed(trajectory);
+  double lane_keep   = cost_lane_keep(trajectory);
+  double acceleration=cost_acceleration(trajectory);
+  double stay_on_road=cost_on_road(trajectory);
+  double lane_target =cost_lane_target(trajectory);
+  cout << "\n--Costs: " << speed << ", " << lane_keep << ", "
+      << acceleration << ", " << stay_on_road << ", " << lane_target << endl;
+
+  cost = speed + lane_keep + acceleration + stay_on_road + lane_target;
   return cost;
 }
 
@@ -149,11 +155,13 @@ double Behavior::cost_speed(const Trajectory& trajectory) {
   if (v < v_target) {
     //Accelerate when under speed limit
     cost = cost_stop * (v_target - v) / v_target;
-  } else if (v > v_limit) {
-    cost = 1.0;
-  } else {
+  }
+  else {
+    if (v >= v_limit)
+      cost = 1.0;
+    else
+      cost = max(v - v_limit, 0.0) / v_buffer;
     // Slow down when approaching speed limit
-    cost = max(v - v_limit, 0.0) / v_buffer;
   }
   return cost * weight_speed;
 }
@@ -176,10 +184,8 @@ double Behavior::cost_acceleration(const Trajectory& trajectory) {
   double cost = 0.0;
   double acc = trajectory.target_acc;
   //Heavily penalize slowing down
-  if (acc >= MAX_ACCELERATION)
+  if (fabs(acc) >= MAX_ACCELERATION)
     cost = 1.0;
-  else if (acc < 0)
-    cost = 0.75;
 
   return cost * weight_acceleration;
 }
@@ -203,7 +209,7 @@ double Behavior::cost_on_road(const Trajectory& trajectory) {
 double Behavior::cost_lane_target(const Trajectory& trajectory) {
   double cost = 0.0;
   if (trajectory.target_lane == 2)
-    cost = 0.75;
+    cost = 0.9;
   else
     cost = 1.0;
   return cost * weight_lane_target;

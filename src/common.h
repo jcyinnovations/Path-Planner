@@ -74,18 +74,30 @@ namespace {
   int HORIZON       = 40;						// number of planning intervals
   double PLAN_AHEAD = 50;						// plan-ahead distance in meters (roughly 10 car lengths and distance for comfortable acceleration to speed limit)
   double max_s      = 6945.554;	    // The max s value before wrapping around the track back to 0
-  int OVERLAP       = 5;            // Number of points overlap between old and new trajectories
   queue<Coord> EMPTY_Q;
+  double CLEARANCE  = 5.0;          //Used to specify the acceptable gap to trailing vehicle for lane change
 }
 
 struct Limit {
   double v;
   double gap;
+  double clearance;
 
   Limit() :
     v(SPEED_LIMIT_MPS),
-    gap(PLAN_AHEAD) {};
+    gap(PLAN_AHEAD),
+    clearance(PLAN_AHEAD) {};
 };
+
+
+/**
+ * Print a PathNode
+ */
+inline ostream& operator<< (ostream & out, const Limit& l) {
+    out << "\n\t Limit speed: " << l.v << "\t clearance: " << l.clearance << "\t gap:" << l.gap;
+    return out;
+}
+
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() {
@@ -360,6 +372,8 @@ inline vector<U> subset(vector<U> source, int start, int length) {
 
 struct SharedData {
   vector<double> map_waypoints_x;
+  vector<double> map_waypoints_y;
+  vector<double> map_waypoints_s;
   tk::spline s_x;
   tk::spline s_y;
   tk::spline s_dir;
@@ -500,13 +514,24 @@ inline vector<Limit> lane_limits(
   for (auto sf : sensor_fusion) {
     double v = sqrt(sf[3]*sf[3] + sf[4]*sf[4]);
     int lane = current_lane(sf[6]);
+    //Check that its on the same side of the road
     if (lane > 0 && lane <= TOTAL_LANES) {
       int idx = lane - 1;
       double gap = sf[5] - ego_s;
-      //Get the closest vehicle
-      if ( fabs(gap) < limits[idx].gap) {
-        limits[idx].gap = gap;
-        limits[idx].v = v;
+      //Get the closest vehicles in front
+      if (gap > 0) {
+        // Leading vehicle
+        if (gap < limits[idx].gap) {
+          limits[idx].gap = gap;
+          //Only limit speed if the gap is smaller than plan-ahead distance
+          if (gap < PLAN_AHEAD)
+            limits[idx].v   = v;
+        }
+      } else {
+        //Trailing vehicle
+        if (fabs(gap) < limits[idx].clearance) {
+          limits[idx].clearance = fabs(gap);
+        }
       }
     }
   }
