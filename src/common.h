@@ -75,7 +75,7 @@ namespace {
   double PLAN_AHEAD = 50;						// plan-ahead distance in meters (roughly 10 car lengths and distance for comfortable acceleration to speed limit)
   double max_s      = 6945.554;	    // The max s value before wrapping around the track back to 0
   queue<Coord> EMPTY_Q;
-  double CLEARANCE  = 5.0;          //Used to specify the acceptable gap to trailing vehicle for lane change
+  double CLEARANCE  = 10.0;          //Used to specify the acceptable gap to trailing vehicle for lane change
 }
 
 struct Limit {

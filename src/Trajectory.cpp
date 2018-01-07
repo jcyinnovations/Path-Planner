@@ -474,20 +474,20 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	/**
 	 * Setup coefficients
 	 */
-	//if ( !in_range(d, df, 0.01) ) {
-		T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
-			3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
-			6*t, 			12*pow(t, 2), 	20*pow(t, 3);
-		T_inverse = T.inverse();
+  T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
+    3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
+    6*t, 			12*pow(t, 2), 	20*pow(t, 3);
+  T_inverse = T.inverse();
 
-		VectorXd Df = VectorXd(3);
-		Df << df - (d + d_dot*t + d_dotdot * pow(t,2)/2),
-				df_dot - (d_dot + d_dotdot * t),
-				df_dotdot - d_dotdot;
-		VectorXd B = T_inverse * Df;
-		trajectory.b << d, d_dot, d_dotdot/2, B[0], B[1], B[2];
-	//} else
-	//	trajectory.b << d, 0, 0, 0, 0, 0;
+  VectorXd Df = VectorXd(3);
+  Df << df - (d + d_dot*t + d_dotdot * pow(t,2)/2),
+      df_dot - (d_dot + d_dotdot * t),
+      df_dotdot - d_dotdot;
+  VectorXd B = T_inverse * Df;
+  trajectory.b << d, d_dot, d_dotdot/2, B[0], B[1], B[2];
+  double fwd_acc = trajectory.target_acc;
+  //Combined acceleration
+  trajectory.target_acc = sqrt(fwd_acc*fwd_acc + d_dotdot*d_dotdot);
 }
 
 /**
@@ -525,7 +525,7 @@ void TrajectoryPlanner::plan_trajectory(
    * Forces Behavior Planner to wait before requesting a state change
    */
   trajectory.in_progress = (state == FSM::CL || state == FSM::CR) &&
-      (!in_range(lane_center(trajectory.target_lane), end_d, 0.05));
+      (!in_range(lane_center(trajectory.target_lane), end_d, 0.01));
 
   double st = 0.0;
 	double dt = 0.0;
@@ -547,7 +547,7 @@ void TrajectoryPlanner::plan_trajectory(
 	 */
 
 	if ( trajectory.target_state != state ||
-			(trajectory.plan.size() <= HORIZON-rem) ) {
+			(trajectory.target_state == state && trajectory.plan.size() <= HORIZON-rem) ) {
 
 	  if (rem > 0) {
 	    //Reuse drive cache if available

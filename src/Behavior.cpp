@@ -13,7 +13,7 @@
 Behavior::Behavior()
     : trajectory_planner(trajectory_planner),
       weight_speed(0.20),
-      weight_lane_keep(0.0),
+      weight_lane_keep(0.00),
       weight_acceleration(0.25),
       weight_lane_target(0.20),
       weight_on_road(0.35),
@@ -167,7 +167,7 @@ double Behavior::cost_speed(const Trajectory& trajectory) {
 }
 
 /**
- * Cost of lane-keeping
+ * Cost of staying in current lane versus lane change
  */
 double Behavior::cost_lane_keep(const Trajectory& trajectory) {
   double cost = 0.0;
@@ -186,7 +186,6 @@ double Behavior::cost_acceleration(const Trajectory& trajectory) {
   //Heavily penalize slowing down
   if (fabs(acc) >= MAX_ACCELERATION)
     cost = 1.0;
-
   return cost * weight_acceleration;
 }
 
