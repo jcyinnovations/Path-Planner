@@ -1,2 +1,0 @@
-/usr/bin/ar qc libpath_planning_test_lib.a  CMakeFiles/path_planning_test_lib.dir/AllTests.cpp.o CMakeFiles/path_planning_test_lib.dir/TrajectoryTests.cpp.o
-/usr/bin/ranlib libpath_planning_test_lib.a

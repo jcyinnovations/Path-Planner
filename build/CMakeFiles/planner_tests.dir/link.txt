@@ -1,1 +1,0 @@
-/usr/bin/c++      CMakeFiles/planner_tests.dir/tests/AllTests.cpp.o  -o planner_tests  -L/usr/local/lib tests/libpath_planning_test_lib.a src/libpath_planning_lib.a -pthread /usr/local/lib/libgtest.a /usr/lib/x86_64-linux-gnu/libpython2.7.so -lz -lssl -luv -luWS -Wl,-rpath,/usr/local/lib 
