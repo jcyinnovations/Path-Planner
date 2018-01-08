@@ -12,12 +12,12 @@
  */
 Behavior::Behavior()
     : trajectory_planner(trajectory_planner),
-      weight_speed(0.10),
+      weight_speed(0.05),
       weight_lane_keep(0.00),
-      weight_acceleration(0.25),
-      weight_lane_target(0.15),
-      weight_on_road(0.30),
-      weight_clearance(0.20),
+      weight_acceleration(0.20),
+      weight_lane_target(0.10),
+      weight_on_road(0.50),
+      weight_clearance(0.15),
       cost_stop(0.75),
       a_max(MAX_ACCELERATION) {
   v_buffer = mph_to_mps(5);
