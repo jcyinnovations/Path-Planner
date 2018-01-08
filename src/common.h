@@ -267,11 +267,17 @@ inline double lane_center(int lane) {
  */
 inline int current_lane(double d) {
   int lane = 0;
-  double distance_from_center = 99999;
+  if (d < 0 || d > TOTAL_LANES*LANE_WIDTH)
+    return lane;  //Not on this side of the road
+
+  double min_distance = 99999;
   for (int l = 1; l <= TOTAL_LANES; l++) {
     double distance = fabs(d - lane_center(l));
-    if (distance < distance_from_center) {
-      distance_from_center = distance;
+    if (distance > LANE_WIDTH/2)
+      continue; //Doesn't match this lane
+
+    if (distance < min_distance) {
+      min_distance = distance;
       lane = l;
     }
   }
@@ -393,6 +399,8 @@ struct Trajectory {
         end_d(0.0),
         cost(99999999),
         target_acc(0.0),
+        gap(PLAN_AHEAD),
+        clearance(CLEARANCE),
         in_progress(false) {
   }
 
@@ -432,6 +440,9 @@ struct Trajectory {
   double end_d;				//Trajectory end lateral position
   double cost;        //Trajectory cost
   double target_acc;	//Trajectory acceleration
+
+  double gap;         //Gap ahead of the ego_car
+  double clearance;   //Space between ego car and closest trailing vehicle
 };
 
 struct VehiclePose {
@@ -450,15 +461,31 @@ struct VehiclePose {
         leading(false),
         id(0),
         grid_x(0),
-        grid_y(0) {
-  }
+        grid_y(0) { }
+
+  VehiclePose(const VehiclePose& o)
+      : x(o.x),
+        y(o.y),
+        s(o.s),
+        d(o.d),
+        yaw(o.yaw),
+        v(o.v),
+        lane(o.lane),
+        vx(o.vx),
+        vy(o.vy),
+        waypoint(o.waypoint),
+        distance(o.distance),
+        leading(o.leading),
+        id(o.id),
+        grid_x(o.grid_x),
+        grid_y(o.grid_y) { }
+
   double x;
   double y;
   double s;
   double d;
   double yaw;
   double v;
-
   int lane;
 
   //Search grid position
@@ -485,7 +512,7 @@ inline bool compare_traffic(VehiclePose v1, VehiclePose v2) {
  * Update traffic position to future state using model-based prediction
  * Future time: INTERVAL * HORIZON (set to 1 second)
  */
-inline void predict_traffic(VehiclePose vehicle,
+inline void predict_traffic(const VehiclePose& vehicle,
                             double future,
                             vector<vector<double>>& sensor_fusion) {
   for (int i=0; i < sensor_fusion.size(); i++) {
@@ -498,8 +525,8 @@ inline void predict_traffic(VehiclePose vehicle,
 /**
  * Find the speed of the slowest vehicle in each lane, ahead of ego_car
  */
-inline vector<Limit> lane_limits(
-    VehiclePose vehicle, vector<vector<double>> sensor_fusion) {
+inline vector<Limit> lane_limits(const VehiclePose& vehicle,
+                                 vector<vector<double>> sensor_fusion) {
 
   /**
    * Where will traffic be in the future

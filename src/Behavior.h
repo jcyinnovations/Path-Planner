@@ -35,6 +35,7 @@ class Behavior {
   double weight_acceleration;
   double weight_lane_target;
   double weight_on_road;
+  double weight_clearance;
 
   double v_target;
   double v_limit;
@@ -47,11 +48,13 @@ class Behavior {
 
   ~Behavior();
 
-  void transition_function(SharedData shared, vector<int> predictions,
-                          VehiclePose ego_car, vector<Limit> limits,
-                          double end_path_s, double end_path_d,
-                          vector<double> previous_path_x,
-                          vector<double> previous_path_y,
+  void transition_function(const SharedData& shared,
+                          const VehiclePose& ego_car,
+                          const vector<Limit>& limits,
+                          double end_path_s,
+                          double end_path_d,
+                          const vector<double>& previous_path_x,
+                          const vector<double>& previous_path_y,
                           Trajectory &trajectory);
 
   double cost_function(const Trajectory& trajectory);
@@ -65,6 +68,8 @@ class Behavior {
   double cost_acceleration(const Trajectory& trajectory);
 
   double cost_lane_target(const Trajectory& trajectory);
+
+  double cost_clearance(const Trajectory& trajectory);
 };
 
 #endif /* BEHAVIOR_H_ */

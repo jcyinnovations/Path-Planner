@@ -167,9 +167,8 @@ int main() {
               /**
                * Trajectory Planner wrapped with the Behaviour Planner
                **/
-               vector<int> predictions;
-               behavior_planner.transition_function(shared, predictions, ego_car, limits, end_path_s,
-               end_path_d, previous_path_x, previous_path_y, trajectory);
+               behavior_planner.transition_function(shared, ego_car, limits, end_path_s,
+                                                    end_path_d, previous_path_x, previous_path_y, trajectory);
 
               int i = 0;
               while (i < trajectory.x.size() ) {

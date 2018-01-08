@@ -12,11 +12,12 @@
  */
 Behavior::Behavior()
     : trajectory_planner(trajectory_planner),
-      weight_speed(0.20),
+      weight_speed(0.10),
       weight_lane_keep(0.00),
       weight_acceleration(0.25),
-      weight_lane_target(0.20),
-      weight_on_road(0.35),
+      weight_lane_target(0.15),
+      weight_on_road(0.30),
+      weight_clearance(0.20),
       cost_stop(0.75),
       a_max(MAX_ACCELERATION) {
   v_buffer = mph_to_mps(5);
@@ -60,12 +61,12 @@ Behavior::~Behavior() {
  * Takes current state, vehicle state, traffic and current trajectory as input to compute
  * next best state.
  */
-void Behavior::transition_function(SharedData shared, vector<int> predictions,
-                                   VehiclePose ego_car,
-                                   vector<Limit> limits,
+void Behavior::transition_function(const SharedData& shared,
+                                   const VehiclePose& ego_car,
+                                   const vector<Limit>& limits,
                                    double end_path_s, double end_path_d,
-                                   vector<double> previous_path_x,
-                                   vector<double> previous_path_y,
+                                   const vector<double>& previous_path_x,
+                                   const vector<double>& previous_path_y,
                                    Trajectory &trajectory) {
 
   vector<FSM> possible_successor_states = available_sucessor_states(trajectory.target_state);
@@ -139,10 +140,13 @@ double Behavior::cost_function(const Trajectory& trajectory) {
   double acceleration=cost_acceleration(trajectory);
   double stay_on_road=cost_on_road(trajectory);
   double lane_target =cost_lane_target(trajectory);
-  cout << "\n--Costs: " << speed << ", " << lane_keep << ", "
-      << acceleration << ", " << stay_on_road << ", " << lane_target << endl;
+  double clearance   =cost_clearance(trajectory);
 
-  cost = speed + lane_keep + acceleration + stay_on_road + lane_target;
+  cout << "\n--Costs: speed:" << speed << ", lane-keep:" << lane_keep << ", acceleration:"
+      << acceleration << ", stay on road:" << stay_on_road
+      << ", lane target:" << lane_target << ", clearance:" << clearance <<endl;
+
+  cost = speed + lane_keep + acceleration + stay_on_road + lane_target + clearance;
   return cost;
 }
 
@@ -182,10 +186,17 @@ double Behavior::cost_lane_keep(const Trajectory& trajectory) {
  */
 double Behavior::cost_acceleration(const Trajectory& trajectory) {
   double cost = 0.0;
-  double acc = trajectory.target_acc;
-  //Heavily penalize slowing down
-  if (fabs(acc) >= MAX_ACCELERATION)
+  double acc = fabs(trajectory.target_acc);
+  //acc = fabs(acc);
+
+  if (acc >= MAX_ACCELERATION)
     cost = 1.0;
+  /**
+  else
+    cost = 1/(1 + exp(-0.5*pow(MAX_ACCELERATION - acc, 2.0)));
+  //cost = 1 - (MAX_ACCELERATION - 1.05*acc)/MAX_ACCELERATION;
+  **/
+
   return cost * weight_acceleration;
 }
 
@@ -214,3 +225,11 @@ double Behavior::cost_lane_target(const Trajectory& trajectory) {
   return cost * weight_lane_target;
 }
 
+/**
+ * Pick a lane with the best clearance/gap in front
+ */
+double Behavior::cost_clearance(const Trajectory& trajectory) {
+  double cost = 0.0;
+  cost = (HORIZON - trajectory.gap)/HORIZON;
+  return weight_clearance * cost;
+}

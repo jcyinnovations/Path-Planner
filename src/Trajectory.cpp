@@ -301,13 +301,12 @@ void TrajectoryPlanner::state_update(VehiclePose vehicle, vector<vector<double>>
  */
 inline void apply_requested_state (
 		FSM state,
-		VehiclePose ego_car,
-		vector<Limit> limits,
-		Trajectory& new_trajectory,
-		double& gap) {
+		const VehiclePose& ego_car,
+		const vector<Limit>& limits,
+		Trajectory& new_trajectory) {
 
-  new_trajectory.target_v 	= SPEED_LIMIT_MPS; //Always unless conditions dictate otherwise
-	gap = PLAN_AHEAD;
+  new_trajectory.target_v = SPEED_LIMIT_MPS; //Always unless conditions dictate otherwise
+  new_trajectory.gap          = PLAN_AHEAD;
 	cout << limits << endl;
 	/**
 	 * Update final state position. Conditions for update:
@@ -348,15 +347,16 @@ inline void apply_requested_state (
 	if (new_trajectory.target_lane > 0 &&
 	    new_trajectory.target_lane <= TOTAL_LANES) {
 
+	  int idx = new_trajectory.target_lane - 1;
 	  //Target lane speed set to 95% of the car ahead to ensure we keep back
-	  double target_lane_speed = limits[new_trajectory.target_lane-1].v * 0.95;
-    gap = limits[new_trajectory.target_lane-1].gap;
-    double clearance = limits[new_trajectory.target_lane-1].clearance;
+	  double target_lane_speed = limits[idx].v * 0.99;
+	  new_trajectory.gap = limits[idx].gap;
+    double clearance = limits[idx].clearance;
     /**
      * Accommodate close vehicles (within PLAN_AHEAD distance)
      * by matching their speed in the gap distance
      */
-    if (gap < PLAN_AHEAD) {
+    if (new_trajectory.gap < PLAN_AHEAD) {
       /**
        * Match the speed of the lane in the PLAN_AHEAD or gap distance;
        * Whichever is less
@@ -367,14 +367,16 @@ inline void apply_requested_state (
       }
     } else {
       //ignore larger gaps
-      gap = PLAN_AHEAD;
+      new_trajectory.gap = PLAN_AHEAD;
     }
     /**
      * If the car is behind or next to ego car drastically reduce speed to
      * hinder the lane change
      */
-    if (clearance <= CLEARANCE && state != FSM::KE)
-      new_trajectory.target_v = 0.50*target_lane_speed;
+    if (clearance <= CLEARANCE && state != FSM::KE) {
+      new_trajectory.target_v = 2*target_lane_speed;
+      new_trajectory.clearance= clearance;
+    }
 
 	} else {
 	  //Adjust car speed if it is below speed limit
@@ -388,7 +390,9 @@ inline void apply_requested_state (
  * Generate parameters for s quintic
  * gap - target distance
  */
-inline void solve_s_quintic(VehiclePose ego_car, double gap, Trajectory& trajectory, int& horizon) {
+inline void solve_s_quintic(const VehiclePose& ego_car,
+                            Trajectory& trajectory,
+                            int& horizon) {
 	/**
 	 * Initial State 's'
 	 */
@@ -399,12 +403,12 @@ inline void solve_s_quintic(VehiclePose ego_car, double gap, Trajectory& traject
   double sf_dot    = trajectory.target_v;//final speed
   double sf_dotdot = 0.0;                //final acceleration
 
-	double s_dotdot  = (sf_dot*sf_dot - s_dot*s_dot)/(2*gap);
+	double s_dotdot  = (sf_dot*sf_dot - s_dot*s_dot)/(2*trajectory.gap);
 	/**
 	 * Can control max acceleration but not deceleration
 	 */
 	//default to time to cover gap at constant speed
-	double t = gap/s_dot;
+	double t = trajectory.gap/s_dot;
 	//Unless speed is not constant over the gap
 	if (s_dotdot != 0) {
 	  t = (sf_dot - s_dot)/s_dotdot;
@@ -415,7 +419,8 @@ inline void solve_s_quintic(VehiclePose ego_car, double gap, Trajectory& traject
 	  t = -1*t;
 	}
 
-	cout << " Gap: " << gap << " Time: " << t << " Acceleration: " << s_dotdot << " Target Speed: " << trajectory.target_v;
+	cout << " Gap: " << trajectory.gap << " Time: " << t << " Acceleration: " << s_dotdot
+	     << " Target Speed: " << trajectory.target_v;
 
 	double sf	= s + s_dot*t + s_dotdot * t*t/2;
 
@@ -449,8 +454,13 @@ inline void solve_s_quintic(VehiclePose ego_car, double gap, Trajectory& traject
 }
 
 
-void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
-	double t 		= 3.0;    //time to complete a lane-change
+void solve_d_quintic(const VehiclePose& ego_car,
+                     Trajectory& trajectory,
+                     int horizon) {
+  double t_horizon = horizon*INTERVAL;
+	double t 		     = 3.5;    //time to complete a lane-change
+	if (t_horizon < t)         //For short horizons based on s, used s time-line
+	  t = t_horizon;
 
 	MatrixXd T(3,3);
 	MatrixXd T_inverse(3,3);
@@ -468,26 +478,32 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
 	double df_dotdot  = 0.0; 									//final acceleration (any adjustment done in time horizon 't')
 	double df_dot	    = 0.0; 									//Adjustment over so no lateral movement necessary
 
-	double distance = df - d;
+	double distance   = df - d;
 	d_dotdot = 2 * distance / (t*t);
-
 	/**
 	 * Setup coefficients
 	 */
-  T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
-    3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
-    6*t, 			12*pow(t, 2), 	20*pow(t, 3);
-  T_inverse = T.inverse();
+	//if (fabs(distance) > 0.04) {
+    T << pow(t, 3), 	pow(t, 4), 		pow(t, 5),
+      3*pow(t, 2), 	4*pow(t, 3), 	5*pow(t, 4),
+      6*t, 			12*pow(t, 2), 	20*pow(t, 3);
+    T_inverse = T.inverse();
 
-  VectorXd Df = VectorXd(3);
-  Df << df - (d + d_dot*t + d_dotdot * pow(t,2)/2),
-      df_dot - (d_dot + d_dotdot * t),
-      df_dotdot - d_dotdot;
-  VectorXd B = T_inverse * Df;
-  trajectory.b << d, d_dot, d_dotdot/2, B[0], B[1], B[2];
+    VectorXd Df = VectorXd(3);
+    Df << df - (d + d_dot*t + d_dotdot * pow(t,2)/2),
+        df_dot - (d_dot + d_dotdot * t),
+        df_dotdot - d_dotdot;
+    VectorXd B = T_inverse * Df;
+    trajectory.b << d, d_dot, d_dotdot/2, B[0], B[1], B[2];
+	//} else
+	//  trajectory.b << d, 0, 0, 0, 0, 0;
+
   double fwd_acc = trajectory.target_acc;
   //Combined acceleration
   trajectory.target_acc = sqrt(fwd_acc*fwd_acc + d_dotdot*d_dotdot);
+  cout << "\n solve_d_quintic: car d: " << ego_car.d << " target lane: " << trajectory.target_lane
+      << " acc: " << d_dotdot << " car lane: " << ego_car.lane << " Total acc: " << trajectory.target_acc << endl;
+
 }
 
 /**
@@ -501,24 +517,26 @@ void solve_d_quintic(VehiclePose ego_car, Trajectory& trajectory) {
  *
  */
 void TrajectoryPlanner::plan_trajectory(
-    SharedData shared,
+    const SharedData& shared,
 		FSM state,
-		VehiclePose ego_car,
-		vector<Limit> limits,
+		const VehiclePose& ego_car,
+		const vector<Limit>& limits,
 		double end_s,
 		double end_d,
-		vector<double> previous_path_x,
-		vector<double> previous_path_y,
+		const vector<double>& previous_path_x,
+		const vector<double>& previous_path_y,
 		Trajectory &trajectory) {
 
-	int    rem  = previous_path_x.size();//Number of trajectory points remaining on the car's queue
-  double gap  = PLAN_AHEAD;            //Safe gap between ego car and car ahead
-  int horizon = 0;                     //Actual length of plan in trajectory points (used for generation phase)
+	int    rem      = previous_path_x.size();//Number of trajectory points remaining on the car's queue
+	trajectory.gap  = PLAN_AHEAD;            //Safe gap between ego car and car ahead
+  int horizon     = 0;                     //Actual length of plan in trajectory points (used for generation phase)
+
+  VehiclePose car = ego_car;
 
   /**
 	 * Assess how to obey the state request and change df and sf_dot accordingly
 	 */
-	apply_requested_state(state, ego_car, limits, trajectory, gap);
+	apply_requested_state(state, car, limits, trajectory);
 
   /**
    * Signal a lane-change is in progress.
@@ -551,11 +569,11 @@ void TrajectoryPlanner::plan_trajectory(
 
 	  if (rem > 0) {
 	    //Reuse drive cache if available
-      ego_car.s = end_s;
-      ego_car.d = end_d;
-      ego_car.d = trajectory.end_d;
+      car.s = end_s;
+      car.d = end_d;
+      car.d = trajectory.end_d;
 	  }
-    ego_car.v = trajectory.end_v;
+    car.v = trajectory.end_v;
 		if (trajectory.target_state == state && !trajectory.plan.empty()) {
 		  /**
 		   * Just updating trajectory for existing state;
@@ -563,8 +581,8 @@ void TrajectoryPlanner::plan_trajectory(
 		   * Vehicle location if plan is empty
 		   */
 	      Coord c = trajectory.plan.back();
-        ego_car.s = c.s;
-        ego_car.d = c.d;
+        car.s = c.s;
+        car.d = c.d;
 		}
 
     //Ignore the KB state, its just used to trigger this update on a target speed change
@@ -572,8 +590,8 @@ void TrajectoryPlanner::plan_trajectory(
     trajectory.target_state = state;    //New state requested
 
     //Plan new trajectory
-		solve_s_quintic(ego_car, gap, trajectory, horizon);
-		solve_d_quintic(ego_car, trajectory);
+		solve_s_quintic(car, trajectory, horizon);
+		solve_d_quintic(car, trajectory, horizon);
 
 		/**
 		 * Generate and cache the trajectory and endpoints

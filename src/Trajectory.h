@@ -141,14 +141,14 @@ public:
 	 * Only regenerate if something changes
 	 */
 	void plan_trajectory(
-	    SharedData shared,
+	    const SharedData& shared,
 			FSM state,
-			VehiclePose pose,
-			vector<Limit> limits,
+			const VehiclePose& pose,
+			const vector<Limit>& limits,
 			double end_s,
 			double end_d,
-			vector<double> previous_path_x,
-			vector<double> previous_path_y,
+			const vector<double>& previous_path_x,
+			const vector<double>& previous_path_y,
 			Trajectory &trajectory);
 
 	/**
