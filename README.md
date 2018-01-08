@@ -1,140 +1,82 @@
 # CarND-Path-Planning-Project
+
 Self-Driving Car Engineer Nanodegree Program
    
-### Simulator.
-You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
+### Introduction.
 
-### Goals
-In this project your goal is to safely navigate around a virtual highway with other traffic that is driving +-10 MPH of the 50 MPH speed limit. You will be provided the car's localization and sensor fusion data, there is also a sparse map list of waypoints around the highway. The car should try to go as close as possible to the 50 MPH speed limit, which means passing slower traffic when possible, note that other cars will try to change lanes too. The car should avoid hitting other cars at all cost as well as driving inside of the marked road lanes at all times, unless going from one lane to another. The car should be able to make one complete loop around the 6946m highway. Since the car is trying to go 50 MPH, it should take a little over 5 minutes to complete 1 loop. Also the car should not experience total acceleration over 10 m/s^2 and jerk that is greater than 50 m/s^3.
+Path Planning implementation using Behaviour Planner, Trajectory Generator and model-based prediction of traffic.
 
-#### The map of the highway is in data/highway_map.txt
-Each waypoint in the list contains  [x,y,s,dx,dy] values. x and y are the waypoint's map coordinate position, the s value is the distance along the road to get to that waypoint in meters, the dx and dy values define the unit normal vector pointing outward of the highway loop.
+#### Architecture Description
 
-The highway's waypoints loop around so the frenet s value, distance along the road, goes from 0 to 6945.554.
+Building the initial architecture was at first trivial and came down to laying out a foundation for delegating specific responsibilities to each module as laid out in the course notes and videos. Initially, the thought was that the design should use A* Search to layout and constantly update the path forward for the vehicle. It was eventually decided to simplify the design to two basic components: the Trajectory generator and the Behavior Planner. 
 
-## Basic Build Instructions
+#### Trajectory Generator
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./path_planning`.
+The Trajectory Generator would act as the driver; making basic (autonomic) decisions to determine the way forward as any driver would. The Trajectory Planner owns responsiblity for slowing down if needed, deciding how to execute a specific state request (keep lane, left lane, right lane) and halting the Behaviour Planner in critical manouvers (e.g executing a lane change).
 
-Here is the data provided from the Simulator to the C++ Program
+This was the most involved design of the architecture. Several months of iteration were spent trying both the understand the failings of the initial design and to specify proper constraints for the trajectories and how they would be maintained.
 
-#### Main car's localization Data (No Noise)
+The basic design is implemented by the `TrajectoryPlanner` class in `Trajectory.cpp`. The `plan_trajectory()` method implements the planning process. This method takes as input shared data (more on that later), the requested state, vehicle pose, lane limits (described below), the previous trajectory and previously emmitted trajectory points. It then goes through the following process:
 
-["x"] The car's x position in map coordinates
+- delegate to `apply_requested_state()` to apply the requested state. This updates the Trajectory struct with the target parameters (lane, clearance, gap etc). It will cause the vehicle to automatically slow down to match traffic ahead if they are slower than the speed limit or speed up to clear close trailing vehicles.
+- decide whether to halt Behaviour Planner if a lane-change is requested.
+- setup the initial conditions for generating trajectories based on vehicle pose and current trajectory points.
+- delegate the `solve_s_quintic` and `solve_d_quintic` to generate quintics of the trajectory. They also generate a trajectory `horizon` or number of intervals required to complete the trajectory.
+- generate the full trajectory (all intervals on the required `horizon`). This is cached in a `queue` structure for later use to append to the controller cache of `PLAN_AHEAD` trajectory points (set to 50).
+- append any remnant from the main controller plus additional points from the new trajectory up to `PLAN_AHEAD` (50 intervals) which equates to 1 second of trajectory.
 
-["y"] The car's y position in map coordinates
+##### Shared Data
 
-["s"] The car's s position in frenet coordinates
+Very early on, the biggest hurdle to sucessful trajectories was the odd behavior when using the waypoints to generate x,y coordinates required by the controller. There was excessive jerk in the trajectory due to the spacing of the waypoints because the resulting x,y plot was jagged. Rather than manually generate interpolation, it was decided to apply all waypoints to 3 Splines s_x, s_y, s_dir. These splines generated x,y,dir values that were then consumed by `getXY2()` in `common.h` to generate the smoothed x,y values. This resulted in significantly smoother trajectories. 
 
-["d"] The car's d position in frenet coordinates
+There is a bug that occurs around Waypoint 155 that is yet to be resolved. This bug caused erratic behavior at this point.
 
-["yaw"] The car's yaw angle in the map
+##### Handling Traffic
 
-["speed"] The car's speed in MPH
+Traffic as outlined in the sensor fusion data is sorted according to lanes and then reduced to 3 parameters:
 
-#### Previous path data given to the Planner
+- speed: The speed of the slowest car ahead in that lane
+- gap: The smallest gap between the ego car and the leading car in that lane
+- clearance: the smallest clearance between the ego car and the trailing car in that lane.
 
-//Note: Return the previous list but with processed points removed, can be a nice tool to show how far along
-the path has processed since last time. 
+All these parameters are deduced into the future by `INTERVAL * PLAN_AHEAD` seconds (INTERVAL = 0.02, PLAN_AHEAD = 50) or 1 second. Clearance causes a speed up of the ego car (x2) if it is too small (the tolerance is set in CLEARANCE = 10 m). Gap specifies the horizon distance within which the trajectory must be completed with the optimal gap being 40 m or more.
 
-["previous_path_x"] The previous list of x points previously given to the simulator
+##### Quintic Constraints
 
-["previous_path_y"] The previous list of y points previously given to the simulator
+The s quintic is planned on a HORIZON distance of 40 m assuming forward acceleration of 5 m/s/s. The d quintic assumes a lane-change should be executed in 3.5 seconds under optimal conditions or less if mandated by lane conditons (gap to traffic ahead). The assumption is that if the lane-change is too drastic, the Behavior Planner cost function will avoid using it. 
 
-#### Previous path's end s and d values 
+#### The Behavior Planner
 
-["end_path_s"] The previous list's last point's frenet s value
+The Behavior Planner would use a state machine and a set of pre-defined states to iterate through several trajectories; one per possible next state and decide at each interval, the best way forward by its choice of trajectory. 
 
-["end_path_d"] The previous list's last point's frenet d value
+##### State Machine
+The chosen states are KE: KEep Lane, CL: Change Left, and CR: Change Right. Initially, 4 additional states were used but were removed to simplify the project and because they were deemed unnecessary after much trial and error.
 
-#### Sensor Fusion Data, a list of all other car's attributes on the same side of the road. (No Noise)
+For example, to change lanes, the Prepare Change states (PL, PR) would signal matching the lane speed and looking for an appropriate gap to enter. Instead of using those states, the architecture employs a cost function extension for Clearance Cost combined with a speed/acceleration penalty in the Trajectory Planner. To match speed in a lane-change, a human would usually speed up to be faster than the lane they wish to enter. The trajectory planner does exactly that by trying to double the speed of the slowest car in the lane it must enter; only in cases where the clearance is too low (the trailing vehicle is too close). This will likely result in a penalty for acceleration or speed in the Behaviour Planner if the speed or acceleration is too high. 
 
-["sensor_fusion"] A 2d vector of cars and then that car's [car's unique ID, car's x position in map coordinates, car's y position in map coordinates, car's x velocity in m/s, car's y velocity in m/s, car's s position in frenet coordinates, car's d position in frenet coordinates. 
+The Clearance cost accounts for the gap between the ego car and the closest leading vehicle in the target lane. The larger the clearance, the better the lane (lower the cost for adopting a trajectory to enter that lane).
 
-## Details
+##### Cost Function
 
-1. The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
+The following costs were employed (shown with weights):
 
-2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
+- Speed 			(0.05)
+- Lane Keeping 		(0.00)
+- Acceleration		(0.20)
+- Lane Target		(0.10)
+- Stay On Road		(0.50)
+- Clearance			(0.15)
 
-## Tips
+Notice Lane Keeping was removed from the cost-function. This function was delegated to the Trajectory Planner after some experimentation.
 
-A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
+Also a significant proportion of the costs was allocated to staying on the road to highlight its supremacy over all other considerations.
 
----
+### Caveats
 
-## Dependencies
+Possible issues:
 
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `install-mac.sh` or `install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
+- generating the full trajectory on any change may introduce a time penalty at the start of a new trajectory that causes enough jitter to temporarily exceed max speed or accelaration. I spent countless hours trying to debug this unsuccessfully.
 
-## Editor Settings
+- The planner fails around waypoint 155. A significant amount if time was spent trying to debug this with no sucess. 
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
-
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
-
-## Code Style
-
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
-
-## Project Instructions and Rubric
-
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
-
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 
