@@ -47,12 +47,12 @@ The s quintic is planned on a HORIZON distance of 40 m assuming forward accelera
 
 #### The Behavior Planner
 
-The Behavior Planner would use a state machine and a set of pre-defined states to iterate through several trajectories; one per possible next state and decide at each interval, the best way forward by its choice of trajectory. 
+The Behavior Planner (`Behavior` class in `Behavior.cpp`) would use a state machine and a set of pre-defined states to iterate through several trajectories; one per possible next state and decide at each interval, the best way forward by its choice of trajectory. 
 
 ##### State Machine
-The chosen states are KE: KEep Lane, CL: Change Left, and CR: Change Right. Initially, 4 additional states were used but were removed to simplify the project and because they were deemed unnecessary after much trial and error.
+The chosen states are `KE`: KEep Lane, `CL`: Change Left, and `CR`: Change Right. Initially, 4 additional states were used but were removed to simplify the project and because they were deemed unnecessary after much trial and error.
 
-For example, to change lanes, the Prepare Change states (PL, PR) would signal matching the lane speed and looking for an appropriate gap to enter. Instead of using those states, the architecture employs a cost function extension for Clearance Cost combined with a speed/acceleration penalty in the Trajectory Planner. To match speed in a lane-change, a human would usually speed up to be faster than the lane they wish to enter. The trajectory planner does exactly that by trying to double the speed of the slowest car in the lane it must enter; only in cases where the clearance is too low (the trailing vehicle is too close). This will likely result in a penalty for acceleration or speed in the Behaviour Planner if the speed or acceleration is too high. 
+For example, to change lanes, the Prepare Change states (`PL`, `PR`) would signal matching the lane speed and looking for an appropriate gap to enter. Instead of using those states, the architecture employs a cost function extension for Clearance Cost combined with a speed/acceleration penalty in the Trajectory Planner. To match speed in a lane-change, a human would usually speed up to be faster than the lane they wish to enter. The trajectory planner does exactly that by trying to double the speed of the slowest car in the lane it must enter; only in cases where the clearance is too low (the trailing vehicle is too close). This will likely result in a penalty for acceleration or speed in the Behaviour Planner if the speed or acceleration is too high. 
 
 The Clearance cost accounts for the gap between the ego car and the closest leading vehicle in the target lane. The larger the clearance, the better the lane (lower the cost for adopting a trajectory to enter that lane).
 
