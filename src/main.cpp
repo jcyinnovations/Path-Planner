@@ -171,6 +171,7 @@ int main() {
                                                     end_path_d, previous_path_x, previous_path_y, trajectory);
 
               int i = 0;
+
               while (i < trajectory.x.size() ) {
                 next_x_vals.push_back(trajectory.x[i]);
                 next_y_vals.push_back(trajectory.y[i]);

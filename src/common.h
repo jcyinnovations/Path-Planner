@@ -17,6 +17,7 @@
 #include <algorithm>
 #include "Eigen-3.3/Eigen/Dense"
 #include "spline.h"
+#include <iomanip>
 
 using namespace std;
 
@@ -388,61 +389,53 @@ struct SharedData {
 struct Trajectory {
   Trajectory()
       : t(0.0),
-        s(0.0),
-        d(0.0),
         x(0.0),
         y(0.0),
         end_v(0.0),
+        end_d(0.0),
+        end_s(0.0),
+        final_v(0.0),
+        final_d(0.0),
+        final_s(0.0),
         target_lane(2),
         target_v(0.0),
         target_state(FSM::KE),
-        end_d(0.0),
         cost(99999999),
         target_acc(0.0),
         gap(PLAN_AHEAD),
         clearance(CLEARANCE),
+        points_rem(0.0),
         in_progress(false) {
   }
-
-  /**
-  Trajectory(const Trajectory& orig)
-      : t(orig.t),
-        s(orig.s),
-        d(orig.d),
-        x(orig.x),
-        y(orig.y),
-        end_v(orig.end_v),
-        target_lane(orig.target_lane),
-        target_v(orig.target_v),
-        target_state(orig.target_state),
-        end_d(orig.end_d),
-        cost(orig.cost),
-        target_acc(orig.target_acc) {
-  }
-   **/
-  vector<double> s;		//Trajectory s
-  vector<double> d;		//Trajectory d
-  vector<double> x;		//Trajectory x
-  vector<double> y;		//Trajectory y
 
   FSM target_state;		//Requested state
   int target_lane;		//Based on state
   double target_v;		//Target speed
   double t;				    //Planner time
   bool in_progress;   //Signal lane-change in progress to Behavior Planner
-  queue<Coord> plan;	//Plan of upcoming trajectory points
 
   //Current Trajectory parameters
   VectorXd a    = VectorXd(6);
   VectorXd a_s  = VectorXd(6);
   VectorXd b    = VectorXd(6);
-  double end_v;				//Trajectory end speed
-  double end_d;				//Trajectory end lateral position
+
+  vector<double> x;   //x points of trajectory
+  vector<double> y;   //y points of trajectory
+
+  double end_v;				//cache end speed
+  double end_d;				//cache end lateral position
+  double end_s;       //cache end forward position
+
+  double final_v;     //Trajectory end speed
+  double final_d;     //Trajectory end lateral position
+  double final_s;     //Trajectory end forward position
+
   double cost;        //Trajectory cost
   double target_acc;	//Trajectory acceleration
 
   double gap;         //Gap ahead of the ego_car
   double clearance;   //Space between ego car and closest trailing vehicle
+  int    points_rem;  //Number of intervals remaining to complete the trajectory
 };
 
 struct VehiclePose {

@@ -391,8 +391,7 @@ inline void apply_requested_state (
  * gap - target distance
  */
 inline void solve_s_quintic(const VehiclePose& ego_car,
-                            Trajectory& trajectory,
-                            int& horizon) {
+                            Trajectory& trajectory) {
 	/**
 	 * Initial State 's'
 	 */
@@ -450,17 +449,18 @@ inline void solve_s_quintic(const VehiclePose& ego_car,
 	}
 	trajectory.a_s << trajectory.a[1], 	2*trajectory.a[2], 	3*trajectory.a[3],
 					  4*trajectory.a[4], 5*trajectory.a[5], 0;
-	horizon = fabs(t/INTERVAL);
+	trajectory.points_rem = fabs(t/INTERVAL);   //Number of points to generate to complete trajectory
 }
 
 
 void solve_d_quintic(const VehiclePose& ego_car,
-                     Trajectory& trajectory,
-                     int horizon) {
-  double t_horizon = horizon*INTERVAL;
+                     Trajectory& trajectory) {
+  double t = trajectory.points_rem * INTERVAL;
+  /**
 	double t 		     = 3.5;    //time to complete a lane-change
 	if (t_horizon < t)         //For short horizons based on s, used s time-line
 	  t = t_horizon;
+  **/
 
 	MatrixXd T(3,3);
 	MatrixXd T_inverse(3,3);
@@ -502,7 +502,8 @@ void solve_d_quintic(const VehiclePose& ego_car,
   //Combined acceleration
   trajectory.target_acc = sqrt(fwd_acc*fwd_acc + d_dotdot*d_dotdot);
   cout << "\n solve_d_quintic: car d: " << ego_car.d << " target lane: " << trajectory.target_lane
-      << " acc: " << d_dotdot << " car lane: " << ego_car.lane << " Total acc: " << trajectory.target_acc << endl;
+       << " acc: " << d_dotdot << " car lane: " << ego_car.lane
+       << " Total acc: " << trajectory.target_acc << endl;
 
 }
 
@@ -529,7 +530,6 @@ void TrajectoryPlanner::plan_trajectory(
 
 	int    rem      = previous_path_x.size();//Number of trajectory points remaining on the car's queue
 	trajectory.gap  = PLAN_AHEAD;            //Safe gap between ego car and car ahead
-  int horizon     = 0;                     //Actual length of plan in trajectory points (used for generation phase)
 
   VehiclePose car = ego_car;
 
@@ -543,15 +543,8 @@ void TrajectoryPlanner::plan_trajectory(
    * Forces Behavior Planner to wait before requesting a state change
    */
   trajectory.in_progress = (state == FSM::CL || state == FSM::CR) &&
-      (!in_range(lane_center(trajectory.target_lane), end_d, 0.01));
+      (!in_range(lane_center(trajectory.target_lane), trajectory.final_d, 0.01));
 
-  double st = 0.0;
-	double dt = 0.0;
-	double xt = 0.0;
-	double yt = 0.0;
-
-  trajectory.s.clear();
-  trajectory.d.clear();
   trajectory.x.clear();
   trajectory.y.clear();
 
@@ -565,7 +558,7 @@ void TrajectoryPlanner::plan_trajectory(
 	 */
 
 	if ( trajectory.target_state != state ||
-			(trajectory.target_state == state && trajectory.plan.size() <= HORIZON-rem) ) {
+			(trajectory.target_state == state && trajectory.points_rem <= HORIZON-rem) ) {
 
 	  if (rem > 0) {
 	    //Reuse drive cache if available
@@ -574,15 +567,15 @@ void TrajectoryPlanner::plan_trajectory(
       car.d = trajectory.end_d;
 	  }
     car.v = trajectory.end_v;
-		if (trajectory.target_state == state && !trajectory.plan.empty()) {
+		if (trajectory.target_state == state &&
+		    trajectory.points_rem > 0) {
 		  /**
 		   * Just updating trajectory for existing state;
 		   * starting from end of the current plan or
 		   * Vehicle location if plan is empty
 		   */
-	      Coord c = trajectory.plan.back();
-        car.s = c.s;
-        car.d = c.d;
+        car.s = trajectory.final_s;
+        car.d = trajectory.final_d;
 		}
 
     //Ignore the KB state, its just used to trigger this update on a target speed change
@@ -590,54 +583,19 @@ void TrajectoryPlanner::plan_trajectory(
     trajectory.target_state = state;    //New state requested
 
     //Plan new trajectory
-		solve_s_quintic(car, trajectory, horizon);
-		solve_d_quintic(car, trajectory, horizon);
+		solve_s_quintic(car, trajectory);
+		solve_d_quintic(car, trajectory);
 
 		/**
-		 * Generate and cache the trajectory and endpoints
+		 * Generate the trajectory endpoint state
 		 */
 		VectorXd DT(6);
-		double ti = 0.0;
-		dt = 0.0;
-		st = 0.0;
-		for (int i = 1; i <= horizon; i++) {
-			Coord c;
-      ti = ti + INTERVAL;
-      DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
-
-			st = trajectory.a.transpose() * DT;
-			c.v = trajectory.a_s.transpose() * DT;
-			trajectory.s.push_back(st);
-			c.s = st;
-
-			/**
-			 * Stop adjusting d when close to center of lane
-       */
-			if ( in_range(dt, lane_center(trajectory.target_lane), 0.01) ) {
-				trajectory.b << lane_center(trajectory.target_lane), 0, 0, 0, 0, 0;
-			} else {
-				dt = trajectory.b.transpose() * DT;
-			}
-
-			//dt = trajectory.b.transpose() * DT;
-			trajectory.d.push_back(dt);
-			c.d = dt;
-			trajectory.t = ti;
-			/**
-			 * Uses a Spline to smooth over the Frenet to
-			 * Cartesian conversion for the waypoints
-			 */
-			vector<double> xy = getXY2(
-					trajectory.s.back(),
-					trajectory.d.back(),
-					shared.s_x,
-					shared.s_y,
-					shared.s_dir);
-
-			c.x = xy[0];
-			c.y = xy[1];
-			trajectory.plan.push(c);
-		} //END PLAN GENERATION
+		double ti = INTERVAL * (trajectory.points_rem);   //state at the end of the trajectory
+		trajectory.t = 0.0;                             //Reset time
+    DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
+    trajectory.final_s = trajectory.a.transpose() * DT;
+    trajectory.final_d = trajectory.b.transpose() * DT;
+    trajectory.final_v = trajectory.a_s.transpose() * DT;
 	}//END OF PLANNING
 
 	/**
@@ -651,22 +609,58 @@ void TrajectoryPlanner::plan_trajectory(
 	}
 
 	/**
-	 * Append the new plan.
+	 * Append the new plan to complete the drive cache
+	 * for the controller
 	 */
+  VectorXd DT(6);
+  double dt = trajectory.end_d;
+  double st = trajectory.end_s;
+  double ti = trajectory.t;
 	for (int i = 0; i < HORIZON-rem; i++) {
-    Coord c = trajectory.plan.front();
-    trajectory.plan.pop();
-    trajectory.x.push_back(c.x);
-    trajectory.y.push_back(c.y);
+	  //Nothing more to generate
+	  if (trajectory.points_rem == 0)
+	    break;
     /**
-     * Record the speed at the end of this section for
-     * recalculation on a state change later
+     * Generate on demand; caching the last timestamp
+     * and updating the points remaining to know when
+     * this trajectory is done
      */
-    trajectory.end_v = c.v;
-    trajectory.end_d = c.d;
-    if (trajectory.plan.empty()) {
-      break;
+    trajectory.t = trajectory.t + INTERVAL;   //Cache the time for use on the next update cycle
+    ti = trajectory.t;
+    DT << 1, ti, pow(ti,2), pow(ti,3), pow(ti,4), pow(ti,5);
+
+    st = trajectory.a.transpose() * DT;
+    trajectory.end_s = st;
+
+    /**
+     * Stop adjusting d when close to center of lane
+     */
+    if ( !in_range(dt, lane_center(trajectory.target_lane), 0.01) ) {
+      dt = trajectory.b.transpose() * DT;
     }
+    trajectory.end_d = dt;
+
+    trajectory.end_v = trajectory.a_s.transpose() * DT;
+
+    /**
+     * Uses a Spline to smooth over the Frenet to
+     * Cartesian conversion for the waypoints
+     */
+    vector<double> xy = getXY2(
+        st,
+        dt,
+        shared.s_x,
+        shared.s_y,
+        shared.s_dir);
+
+    trajectory.x.push_back(xy[0]);
+    trajectory.y.push_back(xy[1]);
+    trajectory.points_rem = trajectory.points_rem - 1;  //One less point to generate
+    cerr << state_label(trajectory.target_state) << ", " << std::setprecision(9)
+         << end_s << ", " << end_d << ", "
+         << car.s << ", " << car.d << ", "
+         << st << ", " << dt << ", "
+         << xy << endl;
 	}
 }
 

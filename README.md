@@ -77,6 +77,6 @@ Possible issues:
 
 - generating the full trajectory on any change may introduce a time penalty at the start of a new trajectory that causes enough jitter to temporarily exceed max speed or accelaration. I spent countless hours trying to debug this unsuccessfully.
 
-- The planner fails around waypoint 155. A significant amount if time was spent trying to debug this with no sucess. 
+- The planner is erractic around waypoint 155.  
 
 
