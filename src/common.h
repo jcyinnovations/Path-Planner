@@ -72,7 +72,7 @@ namespace {
   int SENSOR_RANGE  = 10;						// construct grid from 2*N waypoints
   double CELL_SIDE  = LANE_WIDTH;		// size of grid cell (m)
   double INTERVAL   = 0.02;					// update interval
-  int HORIZON       = 40;						// number of planning intervals
+  int HORIZON       = 50;						// number of planning intervals
   double PLAN_AHEAD = 50;						// plan-ahead distance in meters (roughly 10 car lengths and distance for comfortable acceleration to speed limit)
   double max_s      = 6945.554;	    // The max s value before wrapping around the track back to 0
   queue<Coord> EMPTY_Q;
@@ -437,6 +437,31 @@ struct Trajectory {
   double clearance;   //Space between ego car and closest trailing vehicle
   int    points_rem;  //Number of intervals remaining to complete the trajectory
 };
+
+inline void copy_trajectory(const Trajectory& source, Trajectory& destination) {
+  destination.t = source.t;
+  destination.x = source.x;
+  destination.y = source.y;
+  destination.end_v = source.end_v;
+  destination.end_d = source.end_d;
+  destination.end_s = source.end_s;
+  destination.final_v = source.final_v;
+  destination.final_d = source.final_d;
+  destination.final_s = source.final_s;
+  destination.target_lane = source.target_lane;
+  destination.target_v = source.target_v;
+  destination.target_state = source.target_state;
+  destination.cost = source.cost;
+  destination.target_acc = source.target_acc;
+  destination.gap = source.gap;
+  destination.clearance = source.clearance;
+  destination.points_rem = source.points_rem;
+  destination.in_progress = source.in_progress;
+
+  destination.a = source.a;
+  destination.a_s = source.a_s;
+  destination.b = source.b;
+}
 
 struct VehiclePose {
   VehiclePose()

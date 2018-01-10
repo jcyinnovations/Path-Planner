@@ -151,6 +151,12 @@ public:
 			const vector<double>& previous_path_y,
 			Trajectory &trajectory);
 
+	void execute(
+	    const SharedData& shared,
+      const vector<double>& previous_path_x,
+      const vector<double>& previous_path_y,
+      Trajectory &trajectory);
+
 	/**
 	 * Find the best route forward. Based on Hybrid A* search
 	 *
