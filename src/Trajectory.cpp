@@ -643,28 +643,18 @@ void TrajectoryPlanner::execute(
 
     trajectory.end_v = trajectory.a_s.transpose() * DT;
 
-    /**
-     * Uses a Spline to smooth over the Frenet to
-     * Cartesian conversion for the waypoints
-     */
     vector<double> xy = getXY2(
         st,
         dt,
-        shared.s_x,
-        shared.s_y,
-        shared.s_dir);
+        shared);
 
     trajectory.x.push_back(xy[0]);
     trajectory.y.push_back(xy[1]);
+
     trajectory.points_rem = trajectory.points_rem - 1;  //One less point to generate
     cerr << state_label(trajectory.target_state) << ", " << std::setprecision(9)
          << st << ", " << dt << ", "
          << xy << endl;
-    /**
-     *  << end_s << ", " << end_d << ", "
-     *  << car.s << ", " << car.d << ", "
-     */
   }
 }
-
 

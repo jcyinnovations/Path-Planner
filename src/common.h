@@ -66,7 +66,7 @@ namespace {
   int LANE_WIDTH    = 4;
   double MAX_ACCELERATION = 0.5 * 10.0;	//meters per second squared
   double SPEED_LIMIT      = 50.0; 			      //miles per hour
-  double SPEED_LIMIT_MPS  = mph_to_mps(SPEED_LIMIT) * 0.90;
+  double SPEED_LIMIT_MPS  = mph_to_mps(SPEED_LIMIT) * 0.92;
   double ROAD_MAX   = TOTAL_LANES * LANE_WIDTH;
   double ROAD_MIN   = 0.0;
   int SENSOR_RANGE  = 10;						// construct grid from 2*N waypoints
@@ -112,19 +112,34 @@ inline double rad2deg(double x) {
 }
 
 /**
- * Uses waypoint splines to convert from Frenet to Cartesian coordinates
- * ,
+ * SharedData stores mapping data translated into splines to
+ * automatically generate interpolations
  */
-inline vector<double> getXY2(double s, double d, const tk::spline &spline_x,
-                             const tk::spline &spline_y,
-                             const tk::spline &spline_dir) {
-  double seg_x = spline_x(s);
-  double seg_y = spline_y(s);
+struct SharedData {
+  vector<double> map_waypoints_x;
+  vector<double> map_waypoints_y;
+  vector<double> map_waypoints_s;
+  tk::spline s_x;
+  tk::spline s_y;
+  tk::spline s_dir;
+  tk::spline s_sindir;
+  tk::spline s_cosdir;
+};
 
-  double perp_heading = spline_dir(s);
+/**
+ * Uses waypoint splines to convert from Frenet to Cartesian coordinates
+ */
+inline vector<double> getXY2(double s, double d,
+                             const SharedData &splines) {
 
-  double x = seg_x + d * cos(perp_heading);
-  double y = seg_y + d * sin(perp_heading);
+  double seg_x = splines.s_x(s);
+  double seg_y = splines.s_y(s);
+
+  double x = seg_x + d * splines.s_cosdir(s);
+  double y = seg_y + d * splines.s_sindir(s);
+
+  printf("getXY2: s= %6.4f\t d= %6.4f\t x= %6.4f\t y= %6.4f\t cos(dir)= %6.4f\t sin(dir)= %6.4f\n",
+         s, d, x, y, splines.s_cosdir(s), splines.s_sindir(s));
 
   return {x,y};
 }
@@ -225,7 +240,8 @@ inline vector<double> getFrenet(double x, double y, double theta,
 }
 
 // Transform from Frenet s,d coordinates to Cartesian x,y
-inline vector<double> getXY(double s, double d, const vector<double> &maps_s,
+inline vector<double> getXY(double s, double d,
+                            const vector<double> &maps_s,
                             const vector<double> &maps_x,
                             const vector<double> &maps_y) {
   int prev_wp = -1;
@@ -376,15 +392,6 @@ inline vector<U> subset(vector<U> source, int start, int length) {
   vector<U> _subset(source.begin() + start, source.begin() + start + count);
   return _subset;
 }
-
-struct SharedData {
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
-  tk::spline s_x;
-  tk::spline s_y;
-  tk::spline s_dir;
-};
 
 struct Trajectory {
   Trajectory()

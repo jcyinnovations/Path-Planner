@@ -49,6 +49,8 @@ int main() {
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
   vector<double> map_waypoints_dir;
+  vector<double> map_waypoints_cosdir;
+  vector<double> map_waypoints_sindir;
 
   ifstream in_map_(map_file_.c_str(), ifstream::in);
 
@@ -72,6 +74,8 @@ int main() {
     map_waypoints_dy.push_back(d_y);
     double dir = atan2(d_y, d_x);
     map_waypoints_dir.push_back(dir);
+    map_waypoints_cosdir.push_back(cos(dir));
+    map_waypoints_sindir.push_back(sin(dir));
   }
 
   SharedData shared;
@@ -81,7 +85,10 @@ int main() {
    */
   shared.s_x.set_points(map_waypoints_s, map_waypoints_x);
   shared.s_y.set_points(map_waypoints_s, map_waypoints_y);
-  shared.s_dir.set_points(map_waypoints_s, map_waypoints_dir);
+  shared.s_dir.set_points(map_waypoints_s, map_waypoints_cosdir);
+  shared.s_cosdir.set_points(map_waypoints_s, map_waypoints_cosdir);
+  shared.s_sindir.set_points(map_waypoints_s, map_waypoints_sindir);
+
   shared.map_waypoints_s = map_waypoints_s;
   shared.map_waypoints_x = map_waypoints_x;
   shared.map_waypoints_y = map_waypoints_y;
