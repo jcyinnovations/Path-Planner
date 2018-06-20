@@ -8,13 +8,13 @@ Path Planning implementation using Behaviour Planner, Trajectory Generator and m
 
 #### Architecture Description
 
-Building the initial architecture was at first trivial and came down to laying out a foundation for delegating specific responsibilities to each module as laid out in the course notes and videos. Initially, the thought was that the design should use A* Search to layout and constantly update the path forward for the vehicle. It was eventually decided to simplify the design to two basic components: the Trajectory generator and the Behavior Planner. 
+The initial design employed A* Search to layout and constantly update the vehicle trajectory. Given that the track is fixed navigating it only requires decisions about traffic. Route selection is only important where there are several possible paths forward. Therefore the design was simplified to two basic components: the Trajectory generator and the Behavior Planner. 
 
 #### Trajectory Generator
 
-The Trajectory Generator would act as the driver; making basic (autonomic) decisions to determine the way forward as any driver would. The Trajectory Planner owns responsiblity for slowing down if needed, deciding how to execute a specific state request (keep lane, left lane, right lane) and halting the Behaviour Planner in critical manouvers (e.g executing a lane change).
+The Trajectory Generator acts as the driver; making basic (autonomic) decisions to determine the way forward as any driver would. The Trajectory Planner owns responsiblity for slowing down if needed, deciding how to execute a specific state request (keep lane, left lane, right lane) and halting the Behaviour Planner in critical manouvers (e.g executing a lane change).
 
-This was the most involved design of the architecture. Several months of iteration were spent trying both the understand the failings of the initial design and to specify proper constraints for the trajectories and how they would be maintained.
+This was the most involved design of the architecture. Several iterations were spent trying both the understand design failings and to specify proper constraints for the trajectories and how they would be maintained.
 
 The basic design is implemented by the `TrajectoryPlanner` class in `Trajectory.cpp`. The `plan_trajectory()` method implements the planning process. This method takes as input shared data (more on that later), the requested state, vehicle pose, lane limits (described below), the previous trajectory and previously emmitted trajectory points. It then goes through the following process:
 
@@ -27,7 +27,7 @@ The basic design is implemented by the `TrajectoryPlanner` class in `Trajectory.
 
 ##### Shared Data
 
-Very early on, the biggest hurdle to sucessful trajectories was the odd behavior when using the waypoints to generate x,y coordinates required by the controller. There was excessive jerk in the trajectory due to the spacing of the waypoints because the resulting x,y plot was jagged. Rather than manually generate interpolation, it was decided to apply all waypoints to 3 Splines s_x, s_y, s_dir. These splines generated x,y,dir values that were then consumed by `getXY2()` in `common.h` to generate the smoothed x,y values. This resulted in significantly smoother trajectories. 
+Very early on, the biggest hurdle to successful trajectories was the odd behavior when using the waypoints to generate x,y coordinates required by the controller. There was excessive jerk in the trajectory as a side-effect of interpolation between widely spaced waypoints. Rather than manually interpolate, waypoints were used to create splines s_x, s_y, s_dir. These splines generated x,y,dir values that were then consumed by `getXY2()` in `common.h` to generate the smoothed x,y values. This resulted in significantly smoother trajectories. 
 
 There is a bug that occurs around Waypoint 155 that is yet to be resolved. This bug caused erratic behavior at this point.
 
